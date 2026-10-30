@@ -1,0 +1,17 @@
+# Published as wrangler.toml in the public repository.
+name = "blooio-mcp"
+main = "src/index.js"
+compatibility_date = "2026-07-22"
+
+# OAuth clients, pending sign-ins, and authorization codes (key prefixes in src/oauth.js).
+# Create one with `npx wrangler kv namespace create OAUTH_STORAGE`; any id works for `wrangler dev`.
+[[kv_namespaces]]
+binding = "OAUTH_STORAGE"
+id = "local"
+
+# BLOOIO_OAUTH_CLIENT_SECRET goes in .dev.vars locally, or `wrangler secret put` when deployed.
+[vars]
+ENVIRONMENT = "development"
+UPSTREAM_BASE_URL = "https://api.blooio.com/v4"
+PUBLIC_URL = "http://localhost:8787"
+BLOOIO_OAUTH_CLIENT_ID = "your Blooio app client_id (bloapp_...)"
