@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.blooio/mcp",
+  "title": "Blooio",
+  "description": "Send and receive iMessage, SMS, RCS, and WhatsApp, and manage contacts, chats, and numbers.",
+  "version": "4.1.0",
+  "websiteUrl": "https://blooio.com/integrations/mcp",
+  "repository": {
+    "url": "https://github.com/Blooio/blooio-mcp",
+    "source": "github",
+    "id": "1440303671"
+  },
+  "icons": [
+    {
+      "src": "https://blooio.com/icon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    },
+    {
+      "src": "https://blooio.com/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.blooio.com/v4"
+    }
+  ]
+}
