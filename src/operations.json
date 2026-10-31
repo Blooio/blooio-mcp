@@ -796,7 +796,7 @@
     {
       "name": "update_channel_settings",
       "operationId": "updateChannelSettings",
-      "description": "Update channel settings\n\nPartial update of a channel's settings (send only the keys you want to change). Keys are per channel type. Blooio (P2P numbers): `auto_mark_read` is available on dedicated and inbound lines; `auto_share_contact` is dedicated-only AND the line must have a contact card (name or photo) set up; `imessage_only` is available on every line. Apple Messages for Business and WhatsApp Business: `opener`, a partial update of the channel's opener (send only the fields you want to change). Blooio Voice: `inbound`, with `handler` (`softphone`, `agent`, or `api`) and `ring_timeout_seconds` (5 to 120); `agent` needs a live Blooio agent that owns the number. Turning a setting OFF is always allowed. Errors return a machine-readable `code`: `settings_unsupported_for_channel_type` (403, a channel type without settings), `auto_mark_read_not_allowed` / `auto_share_contact_not_allowed` (403, line type can't enable it), `contact_card_not_set_up` (403, enable auto_share_contact with no contact card), `agent_unavailable` (409, the `agent` handler on a number no live Blooio agent owns), `no_settings_provided` (422, empty update), `invalid_settings` (422, unknown key or field, a value of the wrong type, or an…",
+      "description": "Update channel settings\n\nPartial update of a channel's settings (send only the keys you want to change). Keys are per channel type. Blooio (P2P numbers): `auto_mark_read` is available on dedicated and inbound lines; `auto_share_contact` is dedicated-only AND the line must have a contact card (name or photo) set up; `imessage_only` is available on every line. Apple Messages for Business and WhatsApp Business: `opener`, a partial update of the channel's opener (send only the fields you want to change). Blooio Voice: `inbound`, with `handler` (`softphone` or `agent`) and `ring_timeout_seconds` (5 to 120); `agent` needs a live Blooio agent that owns the number. Turning a setting OFF is always allowed. Errors return a machine-readable `code`: `settings_unsupported_for_channel_type` (403, a channel type without settings), `auto_mark_read_not_allowed` / `auto_share_contact_not_allowed` (403, line type can't enable it), `contact_card_not_set_up` (403, enable auto_share_contact with no contact card), `agent_unavailable` (409, the `agent` handler on a number no live Blooio agent owns), `no_settings_provided` (422, empty update), `invalid_settings` (422, unknown key or field, a value of the wrong type, or an opener…",
       "annotations": {
         "title": "Update channel settings",
         "readOnlyHint": false,
@@ -851,17 +851,16 @@
                 "type": "string",
                 "enum": [
                   "softphone",
-                  "agent",
-                  "api"
+                  "agent"
                 ],
-                "description": "`softphone` rings the organization's dashboard softphones. `agent` has the Blooio agent that owns the number answer; calls with a withheld caller ID are refused. `api` leaves the call ringing for you to answer with `POST /calls/{call_id}/answer` after the `call.ringing` webhook."
+                "description": "Every inbound call sends the `call.ringing` webhook. `softphone` also rings the organization's dashboards; a teammate there or your code with `POST /calls/{call_id}/answer` can answer, and the first to answer takes the call. `agent` has the Blooio agent that owns the number answer; calls with a withheld caller ID are refused."
               },
               "ring_timeout_seconds": {
                 "type": "integer",
                 "minimum": 5,
                 "maximum": 120,
                 "default": 30,
-                "description": "How long a call rings before it ends `missed`. Also how long a call a Blooio agent hands off waits for a teammate."
+                "description": "How long a call rings before it ends `missed`. Also how long a call a Blooio agent hands off waits for a teammate before the agent takes it back."
               }
             }
           },
@@ -1044,6 +1043,9 @@
           "link_preview",
           "badge",
           "carousel",
+          "rich_card",
+          "suggestions",
+          "fallback",
           "to",
           "dry_run"
         ],
@@ -1079,7 +1081,7 @@
               "type": "string",
               "format": "uri"
             },
-            "description": "Public https media URLs. May be combined with `text`. On Blooio iMessage, two or more image/video URLs are grouped into one photo/video carousel/collage bubble by default; set `carousel: false` to send them as separate bubbles.",
+            "description": "Public https media URLs. May be combined with `text`. On Blooio iMessage, two or more image/video URLs are grouped into one photo/video carousel/collage bubble by default; set `carousel: false` to send them as separate bubbles. On RCS Business, a message takes one URL, and its files can total at most 5 MB (`422 message_too_large`); a URL that can't be downloaded returns `422 attachment_unavailabl…",
             "minItems": 1
           },
           "rich_link": {
@@ -1388,6 +1390,107 @@
           "carousel": {
             "type": "boolean",
             "description": "Group image/video attachments into ONE message that Messages renders as a swipeable photo/video carousel/collage, instead of separate bubbles (Blooio p2p iMessage only). DEFAULTS ON: a Blooio send whose attachments (via `attachments` or `parts`) are two or more image/video URLs is grouped automatically — set `carousel: false` to send them as independent bubbles instead. Set `carousel: true` expli…"
+          },
+          "rich_card": {
+            "type": "object",
+            "description": "A Blooio RCS rich card, or a swipeable carousel of up to 10 (Blooio RCS only). Each card shows media, a title, a description, and up to 4 suggestions of its own.",
+            "properties": {
+              "cards": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "cards"
+            ]
+          },
+          "suggestions": {
+            "type": "array",
+            "maxItems": 11,
+            "items": {
+              "type": "object",
+              "description": "A chip on a Blooio RCS message or card. `reply` sends its `text` back; the other types act on the phone, and a phone that can't do one rejects the send unless `fallback` is `auto`.",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "reply",
+                    "open_url",
+                    "dial",
+                    "view_location",
+                    "share_location",
+                    "create_calendar_event"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 25,
+                  "description": "The chip's label."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "description": "Returned as `interactive.selected.id` when the chip is tapped. Defaults to `text`."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "`open_url`: the http(s) URL to open."
+                },
+                "phone_number": {
+                  "type": "string",
+                  "description": "`dial`: the E.164 number to call."
+                },
+                "latitude": {
+                  "type": "number",
+                  "description": "`view_location`: with `longitude`, the point to show."
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "query": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "`view_location`: a place to search for, instead of a point."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "`view_location`: the pin's label."
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "`create_calendar_event`: the event's title."
+                },
+                "start_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "`create_calendar_event`: ISO 8601."
+                },
+                "end_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "`create_calendar_event`: ISO 8601, after `start_time`."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "`create_calendar_event`: the event's notes."
+                }
+              },
+              "required": [
+                "type",
+                "text"
+              ]
+            },
+            "description": "Tappable chips under a `text`, `attachments`, or `rich_card` message (Blooio RCS only). A tapped reply comes back as a `message.received` whose `text` is the chip's `text` and whose `interactive.selected` carries its `id`."
+          },
+          "fallback": {
+            "type": "string",
+            "enum": [
+              "reject",
+              "auto"
+            ],
+            "default": "reject",
+            "description": "What to do when the recipient's device can't show `interactive`, `rich_card`, or `suggestions` content. `reject` (the default) fails the send with a `422` naming what's missing (`amb_capability_unavailable` on Apple Messages for Business, `rcs_feature_unsupported` with `missing_features` on Blooio RCS). `auto` sends the closest thing the device can show instead: on Blooio RCS, cards and chips it…"
           },
           "to": {
             "description": "A recipient: a raw identifier string (phone/email/opaque provider id), an array of identifier strings (multiple recipients), an existing `{ group_id }` with an exact sender, or (for routed sends) a `{ contact_id }`. A `contact_id` enables cross-channel-type routing via the contact's identities; a bare identifier reaches phone/email-addressable channels only.",
@@ -2257,7 +2360,7 @@
     {
       "name": "get_contact_capabilities",
       "operationId": "getContactCapabilities",
-      "description": "Get contact capabilities\n\nReturns per-identity reachability/capabilities (iMessage/SMS/RCS, etc.) for a contact. For iMessage (blooio) identities this is a LIVE per-number lookup performed by an active iMessage channel — the request is rejected with 409 if the API key has no active iMessage (blooio) channel provisioned.",
+      "description": "Get contact capabilities\n\nReturns per-identity reachability/capabilities (iMessage/SMS/RCS, etc.) for a contact. For iMessage (blooio) identities this is a LIVE per-number lookup performed by an active iMessage channel — the request is rejected with 409 if the API key has no active iMessage (blooio) channel provisioned. `rcs` says what each of the organization's verified Blooio RCS senders can show each of the contact's phone numbers.",
       "annotations": {
         "title": "Get contact capabilities",
         "readOnlyHint": true,
@@ -3569,6 +3672,9 @@
           "link_preview",
           "badge",
           "carousel",
+          "rich_card",
+          "suggestions",
+          "fallback",
           "dry_run"
         ],
         "fileFields": []
@@ -3603,7 +3709,7 @@
               "type": "string",
               "format": "uri"
             },
-            "description": "Public https media URLs. May be combined with `text`. On Blooio iMessage, two or more image/video URLs are grouped into one photo/video carousel/collage bubble by default; set `carousel: false` to send them as separate bubbles.",
+            "description": "Public https media URLs. May be combined with `text`. On Blooio iMessage, two or more image/video URLs are grouped into one photo/video carousel/collage bubble by default; set `carousel: false` to send them as separate bubbles. On RCS Business, a message takes one URL, and its files can total at most 5 MB (`422 message_too_large`); a URL that can't be downloaded returns `422 attachment_unavailabl…",
             "minItems": 1
           },
           "rich_link": {
@@ -3912,6 +4018,107 @@
           "carousel": {
             "type": "boolean",
             "description": "Group image/video attachments into ONE message that Messages renders as a swipeable photo/video carousel/collage, instead of separate bubbles (Blooio p2p iMessage only). DEFAULTS ON: a Blooio send whose attachments (via `attachments` or `parts`) are two or more image/video URLs is grouped automatically — set `carousel: false` to send them as independent bubbles instead. Set `carousel: true` expli…"
+          },
+          "rich_card": {
+            "type": "object",
+            "description": "A Blooio RCS rich card, or a swipeable carousel of up to 10 (Blooio RCS only). Each card shows media, a title, a description, and up to 4 suggestions of its own.",
+            "properties": {
+              "cards": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "cards"
+            ]
+          },
+          "suggestions": {
+            "type": "array",
+            "maxItems": 11,
+            "items": {
+              "type": "object",
+              "description": "A chip on a Blooio RCS message or card. `reply` sends its `text` back; the other types act on the phone, and a phone that can't do one rejects the send unless `fallback` is `auto`.",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "reply",
+                    "open_url",
+                    "dial",
+                    "view_location",
+                    "share_location",
+                    "create_calendar_event"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 25,
+                  "description": "The chip's label."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "description": "Returned as `interactive.selected.id` when the chip is tapped. Defaults to `text`."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "`open_url`: the http(s) URL to open."
+                },
+                "phone_number": {
+                  "type": "string",
+                  "description": "`dial`: the E.164 number to call."
+                },
+                "latitude": {
+                  "type": "number",
+                  "description": "`view_location`: with `longitude`, the point to show."
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "query": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "`view_location`: a place to search for, instead of a point."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "`view_location`: the pin's label."
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "`create_calendar_event`: the event's title."
+                },
+                "start_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "`create_calendar_event`: ISO 8601."
+                },
+                "end_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "`create_calendar_event`: ISO 8601, after `start_time`."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "`create_calendar_event`: the event's notes."
+                }
+              },
+              "required": [
+                "type",
+                "text"
+              ]
+            },
+            "description": "Tappable chips under a `text`, `attachments`, or `rich_card` message (Blooio RCS only). A tapped reply comes back as a `message.received` whose `text` is the chip's `text` and whose `interactive.selected` carries its `id`."
+          },
+          "fallback": {
+            "type": "string",
+            "enum": [
+              "reject",
+              "auto"
+            ],
+            "default": "reject",
+            "description": "What to do when the recipient's device can't show `interactive`, `rich_card`, or `suggestions` content. `reject` (the default) fails the send with a `422` naming what's missing (`amb_capability_unavailable` on Apple Messages for Business, `rcs_feature_unsupported` with `missing_features` on Blooio RCS). `auto` sends the closest thing the device can show instead: on Blooio RCS, cards and chips it…"
           },
           "dry_run": {
             "type": "boolean"
@@ -3962,6 +4169,9 @@
           "link_preview",
           "badge",
           "carousel",
+          "rich_card",
+          "suggestions",
+          "fallback",
           "from",
           "priority_id",
           "channel_type",
@@ -3997,7 +4207,7 @@
               "type": "string",
               "format": "uri"
             },
-            "description": "Public https media URLs. May be combined with `text`. On Blooio iMessage, two or more image/video URLs are grouped into one photo/video carousel/collage bubble by default; set `carousel: false` to send them as separate bubbles.",
+            "description": "Public https media URLs. May be combined with `text`. On Blooio iMessage, two or more image/video URLs are grouped into one photo/video carousel/collage bubble by default; set `carousel: false` to send them as separate bubbles. On RCS Business, a message takes one URL, and its files can total at most 5 MB (`422 message_too_large`); a URL that can't be downloaded returns `422 attachment_unavailabl…",
             "minItems": 1
           },
           "rich_link": {
@@ -4306,6 +4516,107 @@
           "carousel": {
             "type": "boolean",
             "description": "Group image/video attachments into ONE message that Messages renders as a swipeable photo/video carousel/collage, instead of separate bubbles (Blooio p2p iMessage only). DEFAULTS ON: a Blooio send whose attachments (via `attachments` or `parts`) are two or more image/video URLs is grouped automatically — set `carousel: false` to send them as independent bubbles instead. Set `carousel: true` expli…"
+          },
+          "rich_card": {
+            "type": "object",
+            "description": "A Blooio RCS rich card, or a swipeable carousel of up to 10 (Blooio RCS only). Each card shows media, a title, a description, and up to 4 suggestions of its own.",
+            "properties": {
+              "cards": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "cards"
+            ]
+          },
+          "suggestions": {
+            "type": "array",
+            "maxItems": 11,
+            "items": {
+              "type": "object",
+              "description": "A chip on a Blooio RCS message or card. `reply` sends its `text` back; the other types act on the phone, and a phone that can't do one rejects the send unless `fallback` is `auto`.",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "reply",
+                    "open_url",
+                    "dial",
+                    "view_location",
+                    "share_location",
+                    "create_calendar_event"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 25,
+                  "description": "The chip's label."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "description": "Returned as `interactive.selected.id` when the chip is tapped. Defaults to `text`."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "`open_url`: the http(s) URL to open."
+                },
+                "phone_number": {
+                  "type": "string",
+                  "description": "`dial`: the E.164 number to call."
+                },
+                "latitude": {
+                  "type": "number",
+                  "description": "`view_location`: with `longitude`, the point to show."
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "query": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "`view_location`: a place to search for, instead of a point."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "`view_location`: the pin's label."
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "`create_calendar_event`: the event's title."
+                },
+                "start_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "`create_calendar_event`: ISO 8601."
+                },
+                "end_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "`create_calendar_event`: ISO 8601, after `start_time`."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "`create_calendar_event`: the event's notes."
+                }
+              },
+              "required": [
+                "type",
+                "text"
+              ]
+            },
+            "description": "Tappable chips under a `text`, `attachments`, or `rich_card` message (Blooio RCS only). A tapped reply comes back as a `message.received` whose `text` is the chip's `text` and whose `interactive.selected` carries its `id`."
+          },
+          "fallback": {
+            "type": "string",
+            "enum": [
+              "reject",
+              "auto"
+            ],
+            "default": "reject",
+            "description": "What to do when the recipient's device can't show `interactive`, `rich_card`, or `suggestions` content. `reject` (the default) fails the send with a `422` naming what's missing (`amb_capability_unavailable` on Apple Messages for Business, `rcs_feature_unsupported` with `missing_features` on Blooio RCS). `auto` sends the closest thing the device can show instead: on Blooio RCS, cards and chips it…"
           },
           "from": {
             "type": "string",
@@ -5670,7 +5981,7 @@
     {
       "name": "buy_numbers",
       "operationId": "buyNumbers",
-      "description": "Buy numbers\n\nBuy 1 to 10 US local numbers found with `GET /numbers/available`, with `products` turned on. The purchase finishes asynchronously: the response is a `provisioning` purchase, and `number.purchase.completed` or `number.purchase.failed` fires when it settles (or poll `GET /numbers/purchases/{purchaseId}`). Retrying with the same `Idempotency-Key` and body returns the same purchase. An SMS number sends texts once it's assigned to a provisioned 10DLC campaign, which Blooio does automatically when the organization has one. OAuth apps need `numbers:manage`.",
+      "description": "Buy numbers\n\nBuy 1 to 10 US local numbers found with `GET /numbers/available`, with `products` turned on. The purchase finishes asynchronously: the response is a `provisioning` purchase, and `number.purchase.completed` or `number.purchase.failed` fires when it settles (or poll `GET /numbers/purchases/{purchaseId}`). Retrying with the same `Idempotency-Key` and body returns the same purchase. Each number bills monthly from its purchase, charged to the organization's card before it's ordered. An SMS number sends texts once it's assigned to a provisioned 10DLC campaign, which Blooio does automatically when the organization has one. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Buy numbers",
         "readOnlyHint": false,
@@ -6009,7 +6320,7 @@
     {
       "name": "put_ten_dlc_brand",
       "operationId": "putTenDlcBrand",
-      "description": "Register the brand\n\nRegister the organization's brand, or resubmit it with corrected details. The registry reviews it asynchronously; `registration.brand.updated` fires as its `status` changes. A `SOLE_PROPRIETOR` brand must then verify its mobile number (`requires_otp`). OAuth apps need `numbers:manage`.",
+      "description": "Register the brand\n\nRegister the organization's brand, or resubmit it with corrected details. The registry reviews it asynchronously; `registration.brand.updated` fires as its `status` changes. A `SOLE_PROPRIETOR` brand must then verify its mobile number (`requires_otp`). The first registration charges a one-time fee, which also covers the first campaign's review, and refunds it if the registry rejects the request. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Register the brand",
         "readOnlyHint": false,
@@ -6259,7 +6570,7 @@
     {
       "name": "create_ten_dlc_campaign",
       "operationId": "createTenDlcCampaign",
-      "description": "Create a campaign\n\nRegister a campaign under the organization's registered brand. The registry and carriers review it asynchronously; `registration.campaign.updated` fires as its `status` changes. Once a campaign reaches `mno_provisioned`, Blooio assigns the organization's unassigned SMS numbers to its oldest provisioned campaign. OAuth apps need `numbers:manage`.",
+      "description": "Create a campaign\n\nRegister a campaign under the organization's registered brand. The registry and carriers review it asynchronously; `registration.campaign.updated` fires as its `status` changes. Once a campaign reaches `mno_provisioned`, Blooio assigns the organization's unassigned SMS numbers to its oldest provisioned campaign. A campaign bills monthly until it fails or expires, and each one after the first charges a review fee; both are charged before it's submitted and refunded if the registry rejects the request. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Create a campaign",
         "readOnlyHint": false,
@@ -6528,7 +6839,7 @@
     {
       "name": "appeal_ten_dlc_campaign",
       "operationId": "appealTenDlcCampaign",
-      "description": "Appeal a campaign\n\nAsk for a rejected campaign (`review_failed` or `mno_rejected`) to be reviewed again, saying what you fixed. OAuth apps need `numbers:manage`.",
+      "description": "Appeal a campaign\n\nAsk for a rejected campaign (`review_failed` or `mno_rejected`) to be reviewed again, saying what you fixed. An appeal charges a review fee, refunded if the registry rejects the request. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Appeal a campaign",
         "readOnlyHint": false,
@@ -6568,6 +6879,1005 @@
         "required": [
           "campaign_id",
           "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_rcs_brand",
+      "operationId": "getRcsBrand",
+      "description": "Get the RCS brand\n\nThe organization's RCS brand. While it's `in_review`, reading it checks the review for news. OAuth apps need `numbers:read`.",
+      "annotations": {
+        "title": "Get the RCS brand",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/rcs/brand",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "put_rcs_brand",
+      "operationId": "putRcsBrand",
+      "description": "Register the RCS brand\n\nRegister the organization's RCS brand and send it for review, or resubmit a `rejected` or `failed` one with corrected details. Once it's submitted the brand can't change, except its point of contact through `POST /rcs/brand/changes`. `registration.rcs_brand.updated` fires as its `status` changes. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Register the RCS brand",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "PUT",
+      "path": "/rcs/brand",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "display_name",
+          "legal_name",
+          "legal_entity_type",
+          "organization_type",
+          "website",
+          "ein",
+          "stock_symbol",
+          "street",
+          "street2",
+          "city",
+          "state",
+          "postal_code",
+          "country",
+          "first_name",
+          "last_name",
+          "title",
+          "email",
+          "phone"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "description": "The brand's name as people know it."
+          },
+          "legal_name": {
+            "type": "string",
+            "description": "The registered legal name."
+          },
+          "legal_entity_type": {
+            "type": "string",
+            "enum": [
+              "LIMITED_LIABILITY_COMPANY",
+              "CORPORATION",
+              "S_CORPORATION",
+              "PARTNERSHIP",
+              "SOLE_PROPRIETORSHIP"
+            ]
+          },
+          "organization_type": {
+            "type": "string",
+            "enum": [
+              "PRIVATE_PROFIT",
+              "PUBLIC_PROFIT",
+              "NON_PROFIT",
+              "GOVERNMENT"
+            ]
+          },
+          "website": {
+            "type": "string",
+            "format": "uri"
+          },
+          "ein": {
+            "type": "string",
+            "description": "US Employer Identification Number: nine digits, optionally `NN-NNNNNNN`."
+          },
+          "stock_symbol": {
+            "type": "string",
+            "description": "Required for `PUBLIC_PROFIT`: the listing as `EXCHANGE:SYMBOL`."
+          },
+          "street": {
+            "type": "string"
+          },
+          "street2": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 code."
+          },
+          "first_name": {
+            "type": "string",
+            "description": "The brand's contact person."
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "description": "E.164."
+          }
+        },
+        "required": [
+          "display_name",
+          "legal_name",
+          "legal_entity_type",
+          "organization_type",
+          "website",
+          "ein",
+          "street",
+          "city",
+          "state",
+          "postal_code",
+          "country",
+          "first_name",
+          "last_name",
+          "email",
+          "phone"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "request_rcs_brand_change",
+      "operationId": "requestRcsBrandChange",
+      "description": "Request a change to the RCS brand's contact\n\nPay to change the point of contact of a brand that's `in_review` or `verified`; send only the fields that change. The request is charged once, whatever it changes, and Blooio carries it to Google. The brand keeps its contact until the request is `applied`. The brand has one open request at a time. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Request a change to the RCS brand's contact",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/brand/changes",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "first_name",
+          "last_name",
+          "title",
+          "email",
+          "phone"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "description": "E.164."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_rcs_senders",
+      "operationId": "listRcsSenders",
+      "description": "List RCS senders\n\nThe organization's RCS senders, newest first. OAuth apps need `numbers:read`.",
+      "annotations": {
+        "title": "List RCS senders",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/rcs/senders",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_rcs_sender",
+      "operationId": "createRcsSender",
+      "description": "Create an RCS sender\n\nDraft a sender under the organization's brand. It's an `rcs_business` channel from the start, `pending_verification` until Google verifies it, and nothing is sent for review until `POST /rcs/senders/{channelId}/submit`. Upload the logo and banner with `POST /rcs/assets` first. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Create an RCS sender",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/senders",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "use_case",
+          "profile",
+          "alias"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "use_case": {
+            "type": "string",
+            "enum": [
+              "TRANSACTIONAL",
+              "PROMOTIONAL",
+              "OTP",
+              "MULTI_USE"
+            ],
+            "description": "What the sender mostly sends. Carriers review its launch against it."
+          },
+          "profile": {
+            "type": "object",
+            "description": "What people see on the sender in Google Messages. Creating a sender needs every field but the contacts, and at least one of `phone`, `email`, and `website`.",
+            "properties": {
+              "display_name": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "logo_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "A `logo` from `POST /rcs/assets`."
+              },
+              "banner_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "A `banner` from `POST /rcs/assets`."
+              },
+              "brand_color": {
+                "type": "string",
+                "description": "Hex color for the sender's buttons and accents."
+              },
+              "privacy_policy_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "terms_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "phone": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "email": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "website": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            }
+          },
+          "alias": {
+            "type": "string",
+            "description": "Name to send from with `from`. Defaults to one made from `display_name`."
+          }
+        },
+        "required": [
+          "use_case",
+          "profile"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_rcs_sender",
+      "operationId": "getRcsSender",
+      "description": "Get an RCS sender\n\nOne of the organization's RCS senders. While it's under review, reading it checks the review for news. OAuth apps need `numbers:read`.",
+      "annotations": {
+        "title": "Get an RCS sender",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/rcs/senders/{channelId}",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_rcs_sender",
+      "operationId": "updateRcsSender",
+      "description": "Update a draft RCS sender\n\nChange a `draft` sender's use case or profile fields; fields you leave out keep their values. Set `phone`, `email`, or `website` to `null` to remove it; one must remain. A submitted sender's name, logo, and banner change through `POST /rcs/senders/{channelId}/changes`. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Update a draft RCS sender",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "PATCH",
+      "path": "/rcs/senders/{channelId}",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "use_case",
+          "profile"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          },
+          "use_case": {
+            "type": "string",
+            "enum": [
+              "TRANSACTIONAL",
+              "PROMOTIONAL",
+              "OTP",
+              "MULTI_USE"
+            ],
+            "description": "What the sender mostly sends. Carriers review its launch against it."
+          },
+          "profile": {
+            "type": "object",
+            "description": "What people see on the sender in Google Messages. Creating a sender needs every field but the contacts, and at least one of `phone`, `email`, and `website`.",
+            "properties": {
+              "display_name": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "logo_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "A `logo` from `POST /rcs/assets`."
+              },
+              "banner_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "A `banner` from `POST /rcs/assets`."
+              },
+              "brand_color": {
+                "type": "string",
+                "description": "Hex color for the sender's buttons and accents."
+              },
+              "privacy_policy_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "terms_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "phone": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "email": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "website": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "remove_rcs_sender",
+      "operationId": "removeRcsSender",
+      "description": "Remove an RCS sender\n\nStop using a sender for good: its channel stops sending and receiving, and its monthly fee stops, with the rest of the period credited. A sender Google has is then deleted there, which shows in `GET /rcs/changes` as a `sender_removal` request. Fees already charged aren't refunded. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Remove an RCS sender",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      },
+      "method": "DELETE",
+      "path": "/rcs/senders/{channelId}",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "submit_rcs_sender",
+      "operationId": "submitRcsSender",
+      "description": "Submit an RCS sender\n\nSend a draft sender to Google for verification. The brand must be `verified`. Submitting starts the sender's monthly fee, which includes its yearly verification; if the registry refuses the sender, its month is credited back and it stays a draft. Once submitted, add test devices and request the carrier launch; `registration.rcs_sender.updated` fires as its `status`, `section_statuses`, or `carrier_approvals` change. A retry after a lost response finds the same submission. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Submit an RCS sender",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/senders/{channelId}/submit",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "launch_rcs_sender",
+      "operationId": "launchRcsSender",
+      "description": "Request an RCS sender's launch\n\nAsk the US carriers to launch a submitted sender, so it can message anyone rather than only its test devices. Carriers review how people opt in and what they'll receive; each carrier's answer arrives in `carrier_approvals`, and the sender is `live` once they approve. The launch details can be sent once. The organization needs a card on file; the one-time launch fee is billed when T-Mobile approves. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Request an RCS sender's launch",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/senders/{channelId}/launch",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "company_overview",
+          "agent_overview",
+          "interactions",
+          "message_examples",
+          "opt_in_methods",
+          "call_to_action",
+          "call_to_action_url",
+          "call_to_action_media_url",
+          "double_opt_in",
+          "double_opt_in_message",
+          "opt_in_message",
+          "help_response",
+          "opt_out_response",
+          "test_video_url",
+          "test_notes"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          },
+          "company_overview": {
+            "type": "string",
+            "description": "What the business does."
+          },
+          "agent_overview": {
+            "type": "string",
+            "description": "What the sender is for."
+          },
+          "interactions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "TRANSACTIONAL_UPDATES",
+                "CUSTOMER_SUPPORT",
+                "ACCOUNT_ALERTS",
+                "TWO_WAY_CONVERSATION",
+                "MARKETING_OR_PROMOTIONAL",
+                "LOYALTY_OR_REWARD"
+              ]
+            }
+          },
+          "message_examples": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 10,
+            "items": {
+              "type": "string"
+            },
+            "description": "Messages as recipients will see them."
+          },
+          "opt_in_methods": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "WEBSITE",
+                "MOBILE_APP",
+                "SMS",
+                "QR_CODE",
+                "SALE_POINT"
+              ]
+            }
+          },
+          "call_to_action": {
+            "type": "string",
+            "description": "The words people see where they opt in."
+          },
+          "call_to_action_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Required with `WEBSITE`: where the call to action is."
+          },
+          "call_to_action_media_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Required with `WEBSITE` or `MOBILE_APP`: an `opt_in_media` screenshot from `POST /rcs/assets`."
+          },
+          "double_opt_in": {
+            "type": "boolean"
+          },
+          "double_opt_in_message": {
+            "type": "string",
+            "description": "Required when `double_opt_in` is true: the message that asks people to confirm."
+          },
+          "opt_in_message": {
+            "type": "string",
+            "description": "The first message people get after opting in."
+          },
+          "help_response": {
+            "type": "string",
+            "description": "The reply to HELP."
+          },
+          "opt_out_response": {
+            "type": "string",
+            "description": "The reply to STOP."
+          },
+          "test_video_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "A `test_video` from `POST /rcs/assets`, showing the sender in use."
+          },
+          "test_notes": {
+            "type": "string",
+            "description": "Anything reviewers need to try the sender."
+          }
+        },
+        "required": [
+          "channel_id",
+          "company_overview",
+          "agent_overview",
+          "interactions",
+          "message_examples",
+          "opt_in_methods",
+          "call_to_action",
+          "double_opt_in",
+          "opt_in_message",
+          "help_response",
+          "opt_out_response",
+          "test_video_url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "request_rcs_sender_change",
+      "operationId": "requestRcsSenderChange",
+      "description": "Request a change to an RCS sender\n\nPay to change a submitted sender's `display_name`, `logo_url`, or `banner_url`; send only the fields that change. Each field changed is charged when you request it, and Blooio carries the change to Google and the carriers, who review it again. The sender keeps its profile until the request is `applied`. A sender has one open request at a time. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Request a change to an RCS sender",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/senders/{channelId}/changes",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "display_name",
+          "logo_url",
+          "banner_url"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "logo_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "From `POST /rcs/assets` with `kind: logo`."
+          },
+          "banner_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "From `POST /rcs/assets` with `kind: banner`."
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_rcs_test_devices",
+      "operationId": "listRcsTestDevices",
+      "description": "List an RCS sender's test devices\n\nThe phones invited to test the sender before its launch. OAuth apps need `numbers:read`.",
+      "annotations": {
+        "title": "List an RCS sender's test devices",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/rcs/senders/{channelId}/test_devices",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_rcs_test_device",
+      "operationId": "addRcsTestDevice",
+      "description": "Invite an RCS test device\n\nInvite a phone to test a submitted sender. The phone gets a prompt in Google Messages; once it accepts (`status` is `accepted`), the sender can message it as soon as Google verifies the sender, before any launch. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Invite an RCS test device",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/senders/{channelId}/test_devices",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "phone_number"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The tester's phone number (E.164)."
+          }
+        },
+        "required": [
+          "channel_id",
+          "phone_number"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "remove_rcs_test_device",
+      "operationId": "removeRcsTestDevice",
+      "description": "Remove an RCS test device\n\nStop a phone from testing the sender. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Remove an RCS test device",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      },
+      "method": "DELETE",
+      "path": "/rcs/senders/{channelId}/test_devices/{testDeviceId}",
+      "pathParams": [
+        {
+          "name": "channelId",
+          "arg": "channel_id"
+        },
+        {
+          "name": "testDeviceId",
+          "arg": "test_device_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "pattern": "^ch_",
+            "description": "The RCS sender's channel id (`ch_...`)."
+          },
+          "test_device_id": {
+            "type": "string",
+            "description": "The `test_device_id` from the sender's test devices."
+          }
+        },
+        "required": [
+          "channel_id",
+          "test_device_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "upload_rcs_asset",
+      "operationId": "uploadRcsAsset",
+      "description": "Upload an RCS asset\n\nHost an image or video a sender's profile or launch request points to, and get back its URL. Each `kind` has its own limits: `logo` is a 224×224 PNG or JPEG up to 50 KB; `banner` is a 1440×448 PNG or JPEG up to 200 KB; `opt_in_media` is a PNG or JPEG screenshot of the opt-in call to action, up to 5 MB; `test_video` is an MP4 or QuickTime video of the sender in use, up to 50 MB. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Upload an RCS asset",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/assets",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "multipart",
+        "fields": [
+          "kind",
+          "file"
+        ],
+        "fileFields": [
+          "file"
+        ]
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "logo",
+              "banner",
+              "opt_in_media",
+              "test_video"
+            ]
+          },
+          "file": {
+            "type": "string",
+            "description": "Public URL of the file to upload."
+          }
+        },
+        "required": [
+          "kind",
+          "file"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_rcs_changes",
+      "operationId": "listRcsChanges",
+      "description": "List RCS change requests\n\nThe organization's change requests, newest first: paid changes to submitted senders and the brand, and removed senders' deletions. `registration.rcs_change.updated` fires as Blooio sends, applies, or rejects one. OAuth apps need `numbers:read`.",
+      "annotations": {
+        "title": "List RCS change requests",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/rcs/changes",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "cancel_rcs_change",
+      "operationId": "cancelRcsChange",
+      "description": "Cancel an RCS change request\n\nWithdraw a change request that's still `requested`, and refund its fees. Canceling again is safe. A sender removal can't be canceled. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Cancel an RCS change request",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/rcs/changes/{changeId}/cancel",
+      "pathParams": [
+        {
+          "name": "changeId",
+          "arg": "change_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "change_id": {
+            "type": "string",
+            "pattern": "^rcschg_",
+            "description": "The change request's `change_id`."
+          }
+        },
+        "required": [
+          "change_id"
         ],
         "additionalProperties": false
       }
@@ -6728,6 +8038,78 @@
       },
       "method": "GET",
       "path": "/calls/{callId}/transcript",
+      "pathParams": [
+        {
+          "name": "callId",
+          "arg": "call_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "pattern": "^call_",
+            "description": "Call id (`call_...`)."
+          }
+        },
+        "required": [
+          "call_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_call_recording",
+      "operationId": "getCallRecording",
+      "description": "Get a call recording\n\nThe recording of a call with `is_recorded`, once it's saved shortly after the call ends (`call.recording.ready` fires then). A `ready` recording carries `download_url`, an MP3 link that works for 10 minutes; read the recording again for a new one. Recordings are kept for the organization's retention period, at most a year. OAuth apps need `calls:read`.",
+      "annotations": {
+        "title": "Get a call recording",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/calls/{callId}/recording",
+      "pathParams": [
+        {
+          "name": "callId",
+          "arg": "call_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "pattern": "^call_",
+            "description": "Call id (`call_...`)."
+          }
+        },
+        "required": [
+          "call_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_call_recording",
+      "operationId": "deleteCallRecording",
+      "description": "Delete a call recording\n\nDelete a call's recording before its retention period ends. It can't be recovered. A recording that failed or is already deleted is returned as it is. OAuth apps need `calls:write`.",
+      "annotations": {
+        "title": "Delete a call recording",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      },
+      "method": "DELETE",
+      "path": "/calls/{callId}/recording",
       "pathParams": [
         {
           "name": "callId",
