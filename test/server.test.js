@@ -277,21 +277,17 @@ test("authorize rejects a redirect_uri the client did not register", async () =>
   assert.equal((await res.json()).error, "invalid_request");
 });
 
-test("tools/list is public but tools/call without credentials asks the client to sign in", async () => {
+// Clients offer sign-in only when connecting (initialize) is refused.
+test("connecting without credentials asks the client to sign in", async () => {
   const env = makeEnv();
-  const list = await (await rpc(env, { id: 1, method: "tools/list" })).json();
-  assert.ok(list.result.tools.some((tool) => tool.name === "send_message"));
-
-  const res = await rpc(env, {
-    id: 2,
-    method: "tools/call",
-    params: { name: "me", arguments: {} },
-  });
-  assert.equal(res.status, 401);
-  assert.equal(
-    res.headers.get("www-authenticate"),
-    `Bearer resource_metadata="${BASE}/.well-known/oauth-protected-resource"`,
-  );
+  for (const method of ["initialize", "tools/list", "tools/call"]) {
+    const res = await rpc(env, { id: 1, method, params: { name: "me" } });
+    assert.equal(res.status, 401, method);
+    assert.equal(
+      res.headers.get("www-authenticate"),
+      `Bearer resource_metadata="${BASE}/.well-known/oauth-protected-resource"`,
+    );
+  }
 });
 
 test("an expired Blooio token surfaces as HTTP 401 so the client refreshes", async (t) => {
@@ -341,16 +337,17 @@ test("tokens from the API-key sign-in keep resolving to their key", async (t) =>
 
 test("initialize negotiates the protocol version and notifications get 202", async () => {
   const env = makeEnv();
+  const key = "Bearer bl_live_key";
   const init = await (
-    await rpc(env, { id: 1, method: "initialize", params: { protocolVersion: "2025-03-26" } })
+    await rpc(env, { id: 1, method: "initialize", params: { protocolVersion: "2025-03-26" } }, key)
   ).json();
   assert.equal(init.result.protocolVersion, "2025-03-26");
 
   const unknown = await (
-    await rpc(env, { id: 2, method: "initialize", params: { protocolVersion: "1999-01-01" } })
+    await rpc(env, { id: 2, method: "initialize", params: { protocolVersion: "1999-01-01" } }, key)
   ).json();
   assert.equal(unknown.result.protocolVersion, "2025-06-18");
 
-  const notification = await rpc(env, { method: "notifications/initialized" });
+  const notification = await rpc(env, { method: "notifications/initialized" }, key);
   assert.equal(notification.status, 202);
 });

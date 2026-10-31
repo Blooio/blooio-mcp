@@ -165,8 +165,7 @@ const rpcError = (id, code, message) => ({
 });
 
 // Tool failures go back as results so the model can read and correct them.
-async function callToolResult(c, params) {
-  const send = await senderFor(c);
+async function callToolResult(send, params) {
   try {
     const result = await withUpstream(() =>
       mcpCallTool(send, params.name, params.arguments || {}),
@@ -178,8 +177,7 @@ async function callToolResult(c, params) {
   }
 }
 
-async function readResourceResult(c, params) {
-  const send = await senderFor(c);
+async function readResourceResult(send, params) {
   const data = await withUpstream(() => mcpReadResource(send, params.uri));
   return {
     contents: [
@@ -209,14 +207,14 @@ function initializeResult(params) {
 }
 
 const RPC_METHODS = {
-  initialize: (c, params) => initializeResult(params),
+  initialize: (send, params) => initializeResult(params),
   ping: () => ({}),
   "tools/list": () => mcpToolsList(),
-  "tools/call": (c, params) => callToolResult(c, params),
+  "tools/call": (send, params) => callToolResult(send, params),
   "resources/list": () => mcpResourcesList(),
-  "resources/read": (c, params) => readResourceResult(c, params),
+  "resources/read": (send, params) => readResourceResult(send, params),
   "prompts/list": () => mcpPromptsList(),
-  "prompts/get": (c, params) => mcpGetPrompt(params.name, params.arguments),
+  "prompts/get": (send, params) => mcpGetPrompt(params.name, params.arguments),
 };
 
 const REQUIRED_PARAMS = {
@@ -226,7 +224,7 @@ const REQUIRED_PARAMS = {
 };
 
 /** One JSON-RPC message; null for notifications, which get no response. */
-async function handleRpc(c, message) {
+async function handleRpc(send, message) {
   const { id, method, params = {} } = message || {};
   if (id === undefined || id === null) return null;
   const handler = RPC_METHODS[method];
@@ -236,7 +234,7 @@ async function handleRpc(c, message) {
     return rpcError(id, -32602, `Invalid params for ${method}: missing ${required}`);
   }
   try {
-    return rpcResult(id, await handler(c, params));
+    return rpcResult(id, await handler(send, params));
   } catch (err) {
     if (!isCallerError(err)) throw err;
     return rpcError(id, -32000, err.message);
@@ -273,13 +271,16 @@ app.get("/v4", (c) => {
   });
 });
 
+// Every message needs credentials: MCP clients offer sign-in only when the
+// connection itself (initialize) is refused with a 401.
 app.post("/v4", async (c) => {
+  const send = await senderFor(c);
   const payload = await c.req.json().catch(() => undefined);
   if (payload === undefined) return c.json(rpcError(null, -32700, "Parse error"));
 
   const responses = [];
   for (const message of [payload].flat()) {
-    const response = await handleRpc(c, message);
+    const response = await handleRpc(send, message);
     if (response) responses.push(response);
   }
   if (responses.length === 0) return c.body(null, 202);
