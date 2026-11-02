@@ -1086,7 +1086,7 @@
           },
           "rich_link": {
             "type": "object",
-            "description": "A tappable rich link bubble (Blooio / Apple Messages for Business).",
+            "description": "A tappable rich link bubble (Blooio / Apple Messages for Business). On Apple Messages for Business, Blooio fills in whatever you leave out from the page's Open Graph tags (`og:title`, `og:image`, `og:video`) and converts the preview image to a PNG under Apple's 200 KB limit; a link whose image can't be brought under it is sent without one. Apple Maps, Apple Music, and App Clip URLs are built by A…",
             "properties": {
               "url": {
                 "type": "string",
@@ -1094,6 +1094,16 @@
               },
               "title": {
                 "type": "string"
+              },
+              "image_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Apple Messages for Business: preview image to use instead of the page's `og:image`."
+              },
+              "video_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Apple Messages for Business: video Apple plays inline in the card instead of a still image."
               }
             },
             "required": [
@@ -1319,7 +1329,7 @@
               "reference_id": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Your business context id for this invitation (order number, case id, etc.). Required by Apple and echoed back on the CloseSession webhook. Max 1000 characters; must not contain quotation marks or apostrophes."
+                "description": "Your business context id for this invitation (order number, case id, etc.). Required by Apple. Max 1000 characters; must not contain quotation marks or apostrophes."
               },
               "parameters": {
                 "type": "object",
@@ -3714,7 +3724,7 @@
           },
           "rich_link": {
             "type": "object",
-            "description": "A tappable rich link bubble (Blooio / Apple Messages for Business).",
+            "description": "A tappable rich link bubble (Blooio / Apple Messages for Business). On Apple Messages for Business, Blooio fills in whatever you leave out from the page's Open Graph tags (`og:title`, `og:image`, `og:video`) and converts the preview image to a PNG under Apple's 200 KB limit; a link whose image can't be brought under it is sent without one. Apple Maps, Apple Music, and App Clip URLs are built by A…",
             "properties": {
               "url": {
                 "type": "string",
@@ -3722,6 +3732,16 @@
               },
               "title": {
                 "type": "string"
+              },
+              "image_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Apple Messages for Business: preview image to use instead of the page's `og:image`."
+              },
+              "video_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Apple Messages for Business: video Apple plays inline in the card instead of a still image."
               }
             },
             "required": [
@@ -3947,7 +3967,7 @@
               "reference_id": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Your business context id for this invitation (order number, case id, etc.). Required by Apple and echoed back on the CloseSession webhook. Max 1000 characters; must not contain quotation marks or apostrophes."
+                "description": "Your business context id for this invitation (order number, case id, etc.). Required by Apple. Max 1000 characters; must not contain quotation marks or apostrophes."
               },
               "parameters": {
                 "type": "object",
@@ -4212,7 +4232,7 @@
           },
           "rich_link": {
             "type": "object",
-            "description": "A tappable rich link bubble (Blooio / Apple Messages for Business).",
+            "description": "A tappable rich link bubble (Blooio / Apple Messages for Business). On Apple Messages for Business, Blooio fills in whatever you leave out from the page's Open Graph tags (`og:title`, `og:image`, `og:video`) and converts the preview image to a PNG under Apple's 200 KB limit; a link whose image can't be brought under it is sent without one. Apple Maps, Apple Music, and App Clip URLs are built by A…",
             "properties": {
               "url": {
                 "type": "string",
@@ -4220,6 +4240,16 @@
               },
               "title": {
                 "type": "string"
+              },
+              "image_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Apple Messages for Business: preview image to use instead of the page's `og:image`."
+              },
+              "video_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Apple Messages for Business: video Apple plays inline in the card instead of a still image."
               }
             },
             "required": [
@@ -4445,7 +4475,7 @@
               "reference_id": {
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Your business context id for this invitation (order number, case id, etc.). Required by Apple and echoed back on the CloseSession webhook. Max 1000 characters; must not contain quotation marks or apostrophes."
+                "description": "Your business context id for this invitation (order number, case id, etc.). Required by Apple. Max 1000 characters; must not contain quotation marks or apostrophes."
               },
               "parameters": {
                 "type": "object",
