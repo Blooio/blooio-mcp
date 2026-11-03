@@ -1867,7 +1867,7 @@
     {
       "name": "list_contacts",
       "operationId": "listContacts",
-      "description": "List contacts\n\nLists contacts. Cursor pagination is the default. Supplying `offset`, `q`, `tag`, `sort`, or `filter` switches to offset pagination and includes `pagination.total`.",
+      "description": "List contacts\n\nLists contacts. Cursor pagination is the default. Supplying `offset`, `q`, `tag`, `agent_id`, `sort`, or `filter` switches to offset pagination and includes `pagination.total`.",
       "annotations": {
         "title": "List contacts",
         "readOnlyHint": true,
@@ -1881,6 +1881,7 @@
         "identifier",
         "q",
         "tag",
+        "agent_id",
         "sort",
         "filter",
         "offset",
@@ -1903,6 +1904,10 @@
           "tag": {
             "type": "string",
             "description": "Case-insensitive tag filter."
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "Only contacts this agent has had a conversation with."
           },
           "sort": {
             "type": "string",
@@ -7431,7 +7436,7 @@
     {
       "name": "submit_rcs_sender",
       "operationId": "submitRcsSender",
-      "description": "Submit an RCS sender\n\nSend a draft sender to Google for verification. The brand must be `verified`. Submitting starts the sender's monthly fee, which includes its yearly verification; if the registry refuses the sender, its month is credited back and it stays a draft. Once submitted, add test devices and request the carrier launch; `registration.rcs_sender.updated` fires as its `status`, `section_statuses`, or `carrier_approvals` change. A retry after a lost response finds the same submission. OAuth apps need `numbers:manage`.",
+      "description": "Submit an RCS sender\n\nSend a draft sender to Google for verification. The brand must be `verified`. Submitting charges the sender's verification, renewed yearly, and starts its monthly fee; if the registry refuses the sender, its verification is refunded, its month is credited back, and it stays a draft. Once submitted, add test devices and request the carrier launch; `registration.rcs_sender.updated` fires as its `status`, `section_statuses`, or `carrier_approvals` change. A retry after a lost response finds the same submission. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Submit an RCS sender",
         "readOnlyHint": false,
