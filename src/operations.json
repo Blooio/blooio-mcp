@@ -488,7 +488,7 @@
     {
       "name": "purchase_blooio_numbers",
       "operationId": "purchaseBlooioNumbers",
-      "description": "Purchase Blooio numbers\n\nPurchase one or more Blooio lines. Purchases are asynchronous and billable: the call charges the organization's default payment method and returns a `purchase_id`; the lines are provisioned when Stripe confirms the invoice, at which point a `number.purchase.completed` webhook fires (or `number.purchase.failed`). A card requiring 3DS/SCA returns `status: action_required` with an `action_url`, and also emits `number.purchase.action_required`.",
+      "description": "Purchase Blooio numbers\n\nPurchase one or more Blooio lines. Purchases are asynchronous and billable: the call charges the organization's credit balance, then its default payment method, and returns a `purchase_id`; the lines are provisioned when Stripe confirms the invoice, at which point a `number.purchase.completed` webhook fires (or `number.purchase.failed`). A card requiring 3DS/SCA returns `status: action_required` with an `action_url`, and also emits `number.purchase.action_required`.",
       "annotations": {
         "title": "Purchase Blooio numbers",
         "readOnlyHint": false,
@@ -7472,7 +7472,7 @@
     {
       "name": "launch_rcs_sender",
       "operationId": "launchRcsSender",
-      "description": "Request an RCS sender's launch\n\nAsk the US carriers to launch a submitted sender, so it can message anyone rather than only its test devices. Carriers review how people opt in and what they'll receive; each carrier's answer arrives in `carrier_approvals`, and the sender is `live` once they approve. The launch details can be sent once. The organization needs a card on file; the one-time launch fee is billed when T-Mobile approves. OAuth apps need `numbers:manage`.",
+      "description": "Request an RCS sender's launch\n\nAsk the US carriers to launch a submitted sender, so it can message anyone rather than only its test devices. Carriers review how people opt in and what they'll receive; each carrier's answer arrives in `carrier_approvals`, and the sender is `live` once they approve. The launch details can be sent once. The organization needs credit or a card on file; the one-time launch fee is billed when T-Mobile approves, from the credit first. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Request an RCS sender's launch",
         "readOnlyHint": false,
