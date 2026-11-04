@@ -511,7 +511,8 @@
           "plan",
           "quantity",
           "area_codes",
-          "zip_codes"
+          "zip_codes",
+          "custom_requests"
         ],
         "fileFields": []
       },
@@ -552,6 +553,29 @@
               "type": "string"
             },
             "description": "Preferred ZIP codes (dedicated/inbound), used when an area code is not specified."
+          },
+          "custom_requests": {
+            "type": "array",
+            "description": "Per-line custom provisioning requests (dedicated/inbound only), matched to lines by position. An object marks that line for manual provisioning by Blooio staff; `null` (or no entry) leaves the line on normal fulfillment. May not have more entries than `quantity`. Each custom line is charged the one-time custom fee and opens a provisioning ticket. Notes are stored as sent and shown on the ticket t…",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "notes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Free-text instructions for Blooio staff, e.g. eSIM details, a number to port in, or the country you need. Optional."
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
           }
         },
         "required": [
@@ -564,7 +588,7 @@
     {
       "name": "get_blooio_purchase",
       "operationId": "getBlooioPurchase",
-      "description": "Get purchase status\n\nPoll the status of an asynchronous number purchase by its `purchase_id`. Returns `pending`/`provisioning`, `completed` (with the provisioned allocations), or `failed`. Requires the `numbers:read` scope for OAuth apps.",
+      "description": "Get purchase status\n\nPoll the status of an asynchronous number purchase by its `purchase_id`. Returns `pending`, `completed` (every line has a number), or `failed`. A line awaiting Blooio staff (a custom request, or an out-of-stock area code or ZIP) has `phone_number: null` and the `ticket_id` of its provisioning ticket; the purchase stays `pending` until staff provision it. Requires the `numbers:read` scope for OAuth apps.",
       "annotations": {
         "title": "Get purchase status",
         "readOnlyHint": true,
