@@ -17,6 +17,8 @@ export const KV_PREFIX_AUTH_CODE = "auth_code:";
 export const KV_PREFIX_LEGACY_ACCESS_TOKEN = "access_token:";
 
 export const PENDING_TTL_SECONDS = 600;
+// Renewed at each sign-in; outlives Blooio's 90-day refresh tokens.
+export const CLIENT_TTL_SECONDS = 180 * 24 * 60 * 60;
 const MCP_TOKEN_PREFIX = "bmcp_";
 
 export const MCP_SCOPES = [

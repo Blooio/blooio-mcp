@@ -41,7 +41,7 @@ The server is an OAuth 2.1 authorization server for MCP clients: dynamic client 
 
 1. The MCP client registers at `/oauth/register` and opens `/oauth/authorize`.
 2. A confirmation page names the client and where it will be redirected, then hands off to Blooio's consent screen as the **Blooio MCP** app.
-3. Blooio redirects back to `/oauth/callback`. If the app is installed on several of the user's organizations, the server asks which one this connection should use.
+3. Blooio redirects back to `/oauth/callback`, which only continues in the browser that confirmed step 2 (a short-lived `__Host-` cookie), so a consent link someone else started can't hand them your tokens. If the app is installed on several of the user's organizations, the server asks which one this connection should use.
 4. The client receives Blooio's tokens wrapped with that organization (`bmcp_<organization_id>.<token>`), so every tool call is pinned to the chosen organization. The server stores no long-lived tokens; refresh requests are forwarded to Blooio.
 
 Discovery documents are served at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`. Calls without valid credentials get `401` with a `WWW-Authenticate` header pointing at the latter.

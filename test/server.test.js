@@ -9,15 +9,18 @@ const VERIFIER = "client-verifier-0123456789-0123456789-0123456789";
 
 function memoryKv(entries = {}) {
   const store = new Map(Object.entries(entries));
+  const ttls = new Map();
   return {
     store,
+    ttls,
     async get(key, type) {
       const value = store.get(key);
       if (value === undefined) return null;
       return type === "json" ? JSON.parse(value) : value;
     },
-    async put(key, value) {
+    async put(key, value, options = {}) {
       store.set(key, value);
+      ttls.set(key, options.expirationTtl);
     },
     async delete(key) {
       store.delete(key);
@@ -147,11 +150,14 @@ async function signIn(env, calls) {
   assert.equal(upstream.searchParams.get("client_id"), "bloapp_mcp");
   assert.equal(upstream.searchParams.get("redirect_uri"), `${BASE}/oauth/callback`);
   assert.equal(upstream.searchParams.get("code_challenge_method"), "S256");
+  const setCookie = handoff.headers.get("set-cookie");
+  assert.match(setCookie, /^__Host-mcp_auth=[^;]+;.*HttpOnly/);
+  assert.match(setCookie, /SameSite=Lax/);
 
   const callback = await request(
     env,
     `/oauth/callback?code=blo_ac_1&state=${upstream.searchParams.get("state")}`,
-    { headers: { accept: "text/html" } },
+    { headers: { accept: "text/html", cookie: setCookie.split(";")[0] } },
   );
 
   const exchange = calls.findLast((c) => c.url.pathname === "/oauth/token");
@@ -236,6 +242,29 @@ test("a user with several installed orgs picks one for the connection", async (t
   assert.equal(chosen.status, 302);
   const tokens = await (await redeem(env, client, chosen)).json();
   assert.equal(tokens.access_token, "bmcp_org_b.blo_at_1");
+});
+
+// An attacker can start a sign-in and send the Blooio consent link to a victim;
+// the victim's browser lacks the attacker's cookie, so the callback refuses it.
+test("a sign-in only completes in the browser that started it", async (t) => {
+  const env = makeEnv();
+  const calls = fakeBlooio(t);
+  const client = await registerClient(env);
+  const handoff = await request(env, "/oauth/authorize", {
+    method: "POST",
+    body: new URLSearchParams(await authorizeParams(client.client_id)),
+  });
+  const state = new URL(handoff.headers.get("location")).searchParams.get("state");
+  const callbackPath = `/oauth/callback?code=blo_ac_1&state=${state}`;
+
+  for (const cookie of [undefined, "__Host-mcp_auth=someone-elses"]) {
+    const res = await request(env, callbackPath, {
+      headers: { accept: "text/html", ...(cookie ? { cookie } : {}) },
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.headers.get("location"), null);
+  }
+  assert.equal(calls.some((c) => c.url.pathname === "/oauth/token"), false);
 });
 
 test("authorization codes require the client's PKCE verifier", async (t) => {
@@ -350,4 +379,56 @@ test("initialize negotiates the protocol version and notifications get 202", asy
 
   const notification = await rpc(env, { method: "notifications/initialized" }, key);
   assert.equal(notification.status, 202);
+});
+
+// Streamable HTTP clients reconnect a GET stream that ends; 405 tells them none is offered.
+test("GET on the MCP endpoint is refused so clients don't hold a stream open", async () => {
+  const res = await request(makeEnv(), "/v4", { headers: { accept: "text/event-stream" } });
+  assert.equal(res.status, 405);
+  assert.equal(res.headers.get("allow"), "POST");
+});
+
+test("oversized JSON-RPC batches are rejected before any call runs", async (t) => {
+  const env = makeEnv();
+  const calls = fakeBlooio(t, { api: () => Response.json({ data: {} }) });
+  const batch = Array.from({ length: 21 }, (_, i) => ({
+    jsonrpc: "2.0",
+    id: i,
+    method: "tools/call",
+    params: { name: "me", arguments: {} },
+  }));
+  const res = await request(env, "/v4", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer bl_live_key" },
+    body: JSON.stringify(batch),
+  });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error.code, -32600);
+  assert.equal(calls.length, 0);
+});
+
+test("registered clients expire unless someone signs in with them", async (t) => {
+  const env = makeEnv();
+  fakeBlooio(t);
+  const client = await registerClient(env);
+  const key = `client:${client.client_id}`;
+  const ttl = env.OAUTH_STORAGE.ttls.get(key);
+  assert.ok(ttl > 0);
+
+  env.OAUTH_STORAGE.ttls.delete(key);
+  await request(env, "/oauth/authorize", {
+    method: "POST",
+    body: new URLSearchParams(await authorizeParams(client.client_id)),
+  });
+  assert.equal(env.OAUTH_STORAGE.ttls.get(key), ttl);
+});
+
+test("sign-in pages can't be framed by another site", async () => {
+  const env = makeEnv();
+  const client = await registerClient(env);
+  const params = await authorizeParams(client.client_id);
+  const res = await request(env, `/oauth/authorize?${new URLSearchParams(params)}`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("x-frame-options"), "DENY");
+  assert.equal(res.headers.get("content-security-policy"), "frame-ancestors 'none'");
 });

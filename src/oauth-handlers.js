@@ -1,10 +1,12 @@
 // OAuth 2.0 routes for MCP clients. The flow is described in ./oauth.js.
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
   KV_PREFIX_CLIENT,
   KV_PREFIX_PENDING_AUTH,
   KV_PREFIX_PENDING_ORG,
   KV_PREFIX_AUTH_CODE,
   PENDING_TTL_SECONDS,
+  CLIENT_TTL_SECONDS,
   MCP_SCOPES,
   OAuthError,
   randomToken,
@@ -33,6 +35,9 @@ const UNSAFE_REDIRECT_SCHEMES = new Set([
 ]);
 const EXPIRED_MESSAGE =
   "This sign-in has expired. Start connecting again from your MCP client.";
+// Ties the Blooio callback to the browser that confirmed the connect page, so
+// a consent link started by someone else can't hand them the user's tokens.
+const AUTH_COOKIE = "mcp_auth";
 
 // Native MCP clients register custom schemes (cursor://, vscode://); plain
 // http is only accepted for loopback.
@@ -65,6 +70,14 @@ async function takePending(env, key) {
   const value = await env.OAUTH_STORAGE.get(key, "json");
   if (value) await env.OAUTH_STORAGE.delete(key);
   return value;
+}
+
+async function putClient(env, client) {
+  await env.OAUTH_STORAGE.put(
+    KV_PREFIX_CLIENT + client.client_id,
+    JSON.stringify(client),
+    { expirationTtl: CLIENT_TTL_SECONDS },
+  );
 }
 
 async function getClient(env, clientId) {
@@ -211,10 +224,7 @@ export async function handleRegister(c) {
     response_types: ["code"],
     token_endpoint_auth_method: "none",
   };
-  await c.env.OAUTH_STORAGE.put(
-    KV_PREFIX_CLIENT + client.client_id,
-    JSON.stringify(client),
-  );
+  await putClient(c.env, client);
   return c.json(client, 201);
 }
 
@@ -240,7 +250,8 @@ export async function handleAuthorizeGet(c) {
 // The user confirmed on the connect page: hand off to Blooio's consent screen.
 export async function handleAuthorizePost(c) {
   const params = await c.req.parseBody();
-  await validateAuthorizeRequest(c.env, params);
+  const client = await validateAuthorizeRequest(c.env, params);
+  await putClient(c.env, client);
 
   const pendingId = randomToken();
   const verifier = randomToken();
@@ -250,6 +261,12 @@ export async function handleAuthorizePost(c) {
     state: params.state,
     code_challenge: params.code_challenge,
     verifier,
+  });
+  setCookie(c, AUTH_COOKIE, pendingId, {
+    prefix: "host",
+    httpOnly: true,
+    sameSite: "Lax",
+    maxAge: PENDING_TTL_SECONDS,
   });
 
   const upstream = new URL(blooioOAuthUrl(c.env, "authorize"));
@@ -268,8 +285,14 @@ export async function handleAuthorizePost(c) {
 // Blooio redirects here after consent.
 export async function handleCallback(c) {
   const { code, state, error } = c.req.query();
-  const pending =
-    state && (await takePending(c.env, KV_PREFIX_PENDING_AUTH + state));
+  if (!state || getCookie(c, AUTH_COOKIE, "host") !== state) {
+    throw new OAuthError(
+      "invalid_request",
+      "This sign-in was started in a different browser. Start connecting again from your MCP client.",
+    );
+  }
+  deleteCookie(c, AUTH_COOKIE, { prefix: "host" });
+  const pending = await takePending(c.env, KV_PREFIX_PENDING_AUTH + state);
   if (!pending) throw new OAuthError("invalid_request", EXPIRED_MESSAGE);
   if (error || !code) {
     return c.redirect(

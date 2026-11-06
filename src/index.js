@@ -31,6 +31,9 @@ import {
 // Newest first; an unknown requested version is answered with the newest.
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
+// Each message in a batch can be an upstream API call.
+const MAX_BATCH_SIZE = 20;
+
 const SERVER_INSTRUCTIONS =
   "Blooio sends and receives iMessage, SMS, RCS, and WhatsApp messages. Call `me` to see the connected organization, `list_channels` for senders, and `send_message` to message a phone number or email (omit `from` for automatic routing). Conversations are chats (chat_...); read them with `list_chats` and `list_chat_messages`.";
 
@@ -60,6 +63,12 @@ app.get("/health", (c) => c.text("ok"));
 // =============================================================================
 // OAuth 2.0
 // =============================================================================
+
+app.use("/oauth/*", async (c, next) => {
+  await next();
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", "frame-ancestors 'none'");
+});
 
 app.post("/oauth/register", handleRegister);
 app.get("/oauth/authorize", handleAuthorizeGet);
@@ -241,35 +250,9 @@ async function handleRpc(send, message) {
   }
 }
 
-app.get("/v4", (c) => {
-  const baseUrl = getBaseUrl(c.env, c.req);
-  return c.json({
-    status: "Up!",
-    service: V4_MANIFEST.name,
-    version: V4_MANIFEST.version,
-    protocol: "mcp",
-    protocolVersion: SUPPORTED_PROTOCOL_VERSIONS[0],
-    env: c.env.ENVIRONMENT,
-    upstream_base: c.env.UPSTREAM_BASE_URL,
-    capabilities: {
-      tools: true,
-      resources: true,
-      prompts: true,
-      authentication: {
-        type: "oauth2",
-        authorization_url: `${baseUrl}/oauth/authorize`,
-        token_url: `${baseUrl}/oauth/token`,
-        scopes: MCP_SCOPES,
-      },
-    },
-    endpoints: {
-      wellKnown: "/.well-known/mcp.json",
-      manifest: "/v4/manifest",
-      jsonrpc: "/v4",
-      sse: "/v4/sse",
-    },
-  });
-});
+// Streamable HTTP clients open a server-to-client stream with GET and reconnect
+// whenever it ends; 405 is the spec's answer for a server that offers none.
+app.get("/v4", (c) => c.body(null, 405, { Allow: "POST" }));
 
 // Every message needs credentials: MCP clients offer sign-in only when the
 // connection itself (initialize) is refused with a 401.
@@ -277,9 +260,16 @@ app.post("/v4", async (c) => {
   const send = await senderFor(c);
   const payload = await c.req.json().catch(() => undefined);
   if (payload === undefined) return c.json(rpcError(null, -32700, "Parse error"));
+  const messages = [payload].flat();
+  if (messages.length > MAX_BATCH_SIZE) {
+    return c.json(
+      rpcError(null, -32600, `Batches are limited to ${MAX_BATCH_SIZE} messages`),
+      400,
+    );
+  }
 
   const responses = [];
-  for (const message of [payload].flat()) {
+  for (const message of messages) {
     const response = await handleRpc(send, message);
     if (response) responses.push(response);
   }
