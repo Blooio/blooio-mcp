@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy --env production",
+    "plugin:zip": "rm -f blooio-plugin.zip && cd plugin && zip -qr ../blooio-plugin.zip . -x '.*'",
     "start": "wrangler dev",
     "sync-spec": "node scripts/sync-spec.mjs",
     "test": "node --test 'test/**/*.test.js'"

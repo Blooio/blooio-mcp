@@ -82,6 +82,10 @@ Then point the [MCP Inspector](https://github.com/modelcontextprotocol/inspector
 npm run sync-spec -- https://docs.blooio.com/openapi.v4.json
 ```
 
+### ChatGPT plugin
+
+`plugin/` is the package submitted to the OpenAI plugin directory: listing metadata and review test cases in `plugin/plugin.json`, the server URL and OAuth settings in `plugin/mcp.json`. Build the upload with `npm run plugin:zip`, which writes `blooio-plugin.zip`. Bump `version` in `plugin.json` for every new upload.
+
 ## License
 
 [Apache 2.0](LICENSE)
