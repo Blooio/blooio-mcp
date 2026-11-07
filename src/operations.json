@@ -512,7 +512,8 @@
           "quantity",
           "area_codes",
           "zip_codes",
-          "custom_requests"
+          "custom_requests",
+          "auto_bind"
         ],
         "fileFields": []
       },
@@ -576,6 +577,10 @@
                 }
               ]
             }
+          },
+          "auto_bind": {
+            "type": "string",
+            "description": "`api_key_id` of an API key in your organization that should own every line in this purchase. Each line is assigned to the key as soon as it gets its number, including lines Blooio staff provision later (custom requests, ZIP codes, out-of-stock area codes), so sends authenticated with that key can use them without a separate assignment call. A key deprecated before its line is provisioned is not a…"
           }
         },
         "required": [
@@ -6061,7 +6066,8 @@
         "type": "json",
         "fields": [
           "phone_numbers",
-          "products"
+          "products",
+          "auto_bind"
         ],
         "fileFields": []
       },
@@ -6094,6 +6100,10 @@
               "description": "A product you can buy a number for and turn on and off: `sms` (Blooio SMS) or `voice` (Blooio Voice)."
             },
             "description": "Products to turn on for every number in the purchase."
+          },
+          "auto_bind": {
+            "type": "string",
+            "description": "`api_key_id` of an API key in your organization that should own every number in the purchase once it is provisioned. Defaults to the calling API key; OAuth apps get no owner without it. Unknown keys return `404 auto_bind_api_key_not_found`."
           }
         },
         "required": [
