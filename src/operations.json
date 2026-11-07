@@ -6583,7 +6583,7 @@
     {
       "name": "get_ten_dlc_usecase_qualification",
       "operationId": "getTenDlcUsecaseQualification",
-      "description": "Check a use case\n\nWhether the organization's brand qualifies for a campaign use case, and how many sub use cases it takes. OAuth apps need `numbers:read`.",
+      "description": "Check a use case\n\nWhether the organization's brand qualifies for a campaign use case, and what carriers require of a campaign for it: how many sub use cases and samples it takes, which flags it must set, and whether its messages can include links or phone numbers. OAuth apps need `numbers:read`.",
       "annotations": {
         "title": "Check a use case",
         "readOnlyHint": true,
@@ -6639,7 +6639,7 @@
     {
       "name": "create_ten_dlc_campaign",
       "operationId": "createTenDlcCampaign",
-      "description": "Create a campaign\n\nRegister a campaign under the organization's registered brand. The registry and carriers review it asynchronously; `registration.campaign.updated` fires as its `status` changes. Once a campaign reaches `mno_provisioned`, Blooio assigns the organization's unassigned SMS numbers to its oldest provisioned campaign. A campaign bills monthly until it fails or expires, and each one after the first charges a review fee; both are charged before it's submitted and refunded if the registry rejects the request. OAuth apps need `numbers:manage`.",
+      "description": "Create a campaign\n\nRegister a campaign under the organization's registered brand. The registry and carriers review it asynchronously; `registration.campaign.updated` fires as its `status` changes. Once a campaign reaches `mno_provisioned`, Blooio assigns the organization's unassigned SMS numbers to its oldest provisioned campaign. A campaign bills monthly until it fails or expires, and each one after the first that's reviewed charges a review fee; both are charged before it's submitted and refunded if the registry rejects the request. A campaign carriers would reject is refused before any charge, with every reason; one the registry still fails before review (`tcr_failed`) has its review fee refunded. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Create a campaign",
         "readOnlyHint": false,
@@ -6694,36 +6694,42 @@
             "items": {
               "type": "string"
             },
-            "description": "Sub use case codes, for use cases that take them (`MIXED`, for one). `GET /10dlc/usecases/{usecase}/qualification` says how many."
+            "description": "Sub use case codes, for use cases that take them (`MIXED`, for one), from the `sub_usecases` values of `GET /10dlc/options`. `GET /10dlc/usecases/{usecase}/qualification` says how many."
           },
           "samples": {
             "type": "array",
             "minItems": 2,
             "maxItems": 5,
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 20
             },
-            "description": "Example messages, as recipients will see them."
+            "description": "Example messages, as recipients will see them. `GET /10dlc/usecases/{usecase}/qualification` says how many."
           },
           "description": {
             "type": "string",
+            "minLength": 40,
             "description": "What the campaign sends and why."
           },
           "message_flow": {
             "type": "string",
+            "minLength": 40,
             "description": "How recipients opt in: where they give consent and what they're told."
           },
           "help_message": {
             "type": "string",
-            "description": "The reply to HELP."
+            "minLength": 20,
+            "description": "The reply to HELP. Required when `subscriber_help` is true."
           },
           "optin_message": {
             "type": "string",
+            "minLength": 20,
             "description": "The reply when someone opts in."
           },
           "optout_message": {
             "type": "string",
-            "description": "The reply to STOP."
+            "minLength": 20,
+            "description": "The reply to STOP. Required when `subscriber_optout` is true."
           },
           "privacy_policy_link": {
             "type": "string",
