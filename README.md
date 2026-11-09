@@ -84,7 +84,7 @@ npm run sync-spec -- https://docs.blooio.com/openapi.v4.json
 
 ### ChatGPT plugin
 
-`plugin/` is the package submitted to the OpenAI plugin directory: listing metadata and review test cases in `plugin/plugin.json`, the server URL and OAuth settings in `plugin/mcp.json`. Build the upload with `npm run plugin:zip`, which writes `blooio-plugin.zip`. Bump `version` in `plugin.json` for every new upload.
+`plugin/` is the package submitted to the OpenAI plugin directory: listing metadata in `plugin/plugin.json`. It has no `mcp.json` because the plugin reuses the MCP connection of its existing OpenAI app (`asdk_app_6944a7f832388191a71b8c68ee393f9e`), and the portal rejects packages that declare one. Without a declared server the package can't carry review test cases, so enter those in the portal under Review details. Build the upload with `npm run plugin:zip`, which writes `blooio-plugin.zip`. Bump `version` in `plugin.json` for every new upload.
 
 ## License
 
