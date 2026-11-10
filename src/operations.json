@@ -5807,7 +5807,7 @@
     {
       "name": "lookup_phone_number",
       "operationId": "lookupPhoneNumber",
-      "description": "Look up a phone number\n\nReturns parsed info / geocoding for a phone number. Requires an enterprise plan.",
+      "description": "Look up a phone number\n\nParses a phone number: its formats, country, numbering-plan type, and for a North American number, its area code's location. Free without `enrich`. With `enrich`, also looks the number up on the phone network for the data sets named, and bills the lookup as usage on the organization's usage invoice: a charge for the lookup, which answers `portability`, plus one for each other data set named; see [pricing](https://docs.blooio.com/reference/v4/phone-numbers/lookupPhoneNumber#pricing). A number that isn't valid isn't looked up or billed. Requires an enterprise plan.",
       "annotations": {
         "title": "Look up a phone number",
         "readOnlyHint": true,
@@ -5818,7 +5818,8 @@
       "path": "/phone-numbers/lookup",
       "pathParams": [],
       "queryParams": [
-        "number"
+        "number",
+        "enrich"
       ],
       "headerParams": [],
       "body": null,
@@ -5828,6 +5829,22 @@
           "number": {
             "type": "string",
             "description": "Phone number in E.164."
+          },
+          "enrich": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "portability",
+                "carrier",
+                "caller_name",
+                "enhanced_caller_name",
+                "caller_identity"
+              ],
+              "description": "A data set an enriched lookup answers, each a field of the result. `portability` comes with every enriched lookup, at the lookup's charge; each other one named is charged on top. See [pricing](https://docs.blooio.com/reference/v4/phone-numbers/lookupPhoneNumber#pricing)."
+            },
+            "minItems": 1,
+            "description": "Data sets to look the number up for, comma-separated; each is billed. Omit it for the free parse."
           }
         },
         "required": [
@@ -5839,7 +5856,7 @@
     {
       "name": "batch_lookup_phone_numbers",
       "operationId": "batchLookupPhoneNumbers",
-      "description": "Batch phone number lookup\n\nLooks up up to 100 phone numbers. Requires an enterprise plan.",
+      "description": "Batch phone number lookup\n\nLooks up up to 100 phone numbers, as the single lookup does, in the order given. Free without `enrich`; with it, each valid number's lookup is billed per data set named, at the [lookup's prices](https://docs.blooio.com/reference/v4/phone-numbers/lookupPhoneNumber#pricing). A number whose lookup failed has `enrichment_error` and isn't billed. Requires an enterprise plan.",
       "annotations": {
         "title": "Batch phone number lookup",
         "readOnlyHint": false,
@@ -5854,7 +5871,8 @@
       "body": {
         "type": "json",
         "fields": [
-          "numbers"
+          "numbers",
+          "enrich"
         ],
         "fileFields": []
       },
@@ -5866,7 +5884,24 @@
             "items": {
               "type": "string"
             },
+            "minItems": 1,
             "maxItems": 100
+          },
+          "enrich": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "portability",
+                "carrier",
+                "caller_name",
+                "enhanced_caller_name",
+                "caller_identity"
+              ],
+              "description": "A data set an enriched lookup answers, each a field of the result. `portability` comes with every enriched lookup, at the lookup's charge; each other one named is charged on top. See [pricing](https://docs.blooio.com/reference/v4/phone-numbers/lookupPhoneNumber#pricing)."
+            },
+            "minItems": 1,
+            "description": "Data sets to look every number up for; each is billed per number. Omit it for the free parse."
           }
         },
         "required": [
