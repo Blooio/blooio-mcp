@@ -1063,6 +1063,7 @@
           "app_clip",
           "imessage_app",
           "poll",
+          "sticker",
           "interactive",
           "invitation",
           "template",
@@ -1219,6 +1220,34 @@
               "title",
               "options"
             ]
+          },
+          "sticker": {
+            "type": "object",
+            "description": "An iMessage sticker (Blooio p2p iMessage only), sent on its own or placed on a message the way you drag a sticker onto a bubble in Messages. The file is sent unchanged: a PNG, APNG, GIF, HEIC or HEICS (animated HEIC) image, at most 40 MB (41,943,040 bytes). Transparent PNGs and HEICS keep their transparency and animation. A sticker can't carry `text` or be a `reply_to`; place it with `placed_on`…",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The sticker file's http(s) URL."
+              },
+              "placed_on": {
+                "type": "string",
+                "description": "Id of the message in this chat to place the sticker on. Omit to send a standalone sticker."
+              },
+              "part_index": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Which part of `placed_on` the sticker goes on (0-based, as in a reaction's `part_index`). Requires `placed_on`."
+              },
+              "placement": {
+                "type": "object",
+                "description": "Where the sticker sits on the bubble. Requires `placed_on`. Any field left out takes its default."
+              }
+            }
           },
           "interactive": {
             "type": "object",
@@ -3707,6 +3736,7 @@
           "app_clip",
           "imessage_app",
           "poll",
+          "sticker",
           "interactive",
           "invitation",
           "template",
@@ -3862,6 +3892,34 @@
               "title",
               "options"
             ]
+          },
+          "sticker": {
+            "type": "object",
+            "description": "An iMessage sticker (Blooio p2p iMessage only), sent on its own or placed on a message the way you drag a sticker onto a bubble in Messages. The file is sent unchanged: a PNG, APNG, GIF, HEIC or HEICS (animated HEIC) image, at most 40 MB (41,943,040 bytes). Transparent PNGs and HEICS keep their transparency and animation. A sticker can't carry `text` or be a `reply_to`; place it with `placed_on`…",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The sticker file's http(s) URL."
+              },
+              "placed_on": {
+                "type": "string",
+                "description": "Id of the message in this chat to place the sticker on. Omit to send a standalone sticker."
+              },
+              "part_index": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Which part of `placed_on` the sticker goes on (0-based, as in a reaction's `part_index`). Requires `placed_on`."
+              },
+              "placement": {
+                "type": "object",
+                "description": "Where the sticker sits on the bubble. Requires `placed_on`. Any field left out takes its default."
+              }
+            }
           },
           "interactive": {
             "type": "object",
@@ -4214,6 +4272,7 @@
           "app_clip",
           "imessage_app",
           "poll",
+          "sticker",
           "interactive",
           "invitation",
           "template",
@@ -4370,6 +4429,34 @@
               "title",
               "options"
             ]
+          },
+          "sticker": {
+            "type": "object",
+            "description": "An iMessage sticker (Blooio p2p iMessage only), sent on its own or placed on a message the way you drag a sticker onto a bubble in Messages. The file is sent unchanged: a PNG, APNG, GIF, HEIC or HEICS (animated HEIC) image, at most 40 MB (41,943,040 bytes). Transparent PNGs and HEICS keep their transparency and animation. A sticker can't carry `text` or be a `reply_to`; place it with `placed_on`…",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The sticker file's http(s) URL."
+              },
+              "placed_on": {
+                "type": "string",
+                "description": "Id of the message in this chat to place the sticker on. Omit to send a standalone sticker."
+              },
+              "part_index": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Which part of `placed_on` the sticker goes on (0-based, as in a reaction's `part_index`). Requires `placed_on`."
+              },
+              "placement": {
+                "type": "object",
+                "description": "Where the sticker sits on the bubble. Requires `placed_on`. Any field left out takes its default."
+              }
+            }
           },
           "interactive": {
             "type": "object",
