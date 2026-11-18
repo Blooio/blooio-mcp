@@ -1292,7 +1292,7 @@
               },
               "images": {
                 "type": "array",
-                "description": "Inline PNG assets referenced by `imageIdentifier` elsewhere in the payload. Supply each as base64 `data` OR a `url` (fetched server-side). Every image — fetched or inline — is validated from its MAGIC BYTES (not the Content-Type): it must be a real PNG (`422 amb_image_not_png` / `code` on the failed send otherwise), within Apple's 200 KB per-image cap (`amb_image_too_large`) and 5 MB aggregate ca…"
+                "description": "Inline PNG assets referenced by `imageIdentifier` elsewhere in the payload. Supply each as base64 `data` OR a `url` (fetched server-side, and converted to a PNG within 200 KB when it isn't one). Every image — fetched or inline — is validated from its MAGIC BYTES (not the Content-Type): it must be a real PNG (`422 amb_image_not_png` / `code` on the failed send otherwise), within Apple's 200 KB per…"
               },
               "items": {
                 "type": "array",
@@ -2870,7 +2870,7 @@
     {
       "name": "list_group_members",
       "operationId": "listGroupMembers",
-      "description": "List group members\n\nFor a merged group id, lists the members of the surviving group.",
+      "description": "List group members\n\nMembers follow the group on the phone: people who join are added and people who leave or are removed drop off, each with a `group.member_added` / `group.member_removed` webhook. For a merged group id, lists the members of the surviving group.",
       "annotations": {
         "title": "List group members",
         "readOnlyHint": true,
@@ -3026,11 +3026,13 @@
           },
           "state": {
             "type": "string",
+            "description": "`left`: a group chat whose number is no longer in the group; sends to the group from that number return 409 `not_in_group` until a message arrives in the group on it again.",
             "enum": [
               "open",
               "closed",
               "blocked",
-              "deprecated"
+              "deprecated",
+              "left"
             ]
           },
           "channel_id": {
@@ -3964,7 +3966,7 @@
               },
               "images": {
                 "type": "array",
-                "description": "Inline PNG assets referenced by `imageIdentifier` elsewhere in the payload. Supply each as base64 `data` OR a `url` (fetched server-side). Every image — fetched or inline — is validated from its MAGIC BYTES (not the Content-Type): it must be a real PNG (`422 amb_image_not_png` / `code` on the failed send otherwise), within Apple's 200 KB per-image cap (`amb_image_too_large`) and 5 MB aggregate ca…"
+                "description": "Inline PNG assets referenced by `imageIdentifier` elsewhere in the payload. Supply each as base64 `data` OR a `url` (fetched server-side, and converted to a PNG within 200 KB when it isn't one). Every image — fetched or inline — is validated from its MAGIC BYTES (not the Content-Type): it must be a real PNG (`422 amb_image_not_png` / `code` on the failed send otherwise), within Apple's 200 KB per…"
               },
               "items": {
                 "type": "array",
@@ -4501,7 +4503,7 @@
               },
               "images": {
                 "type": "array",
-                "description": "Inline PNG assets referenced by `imageIdentifier` elsewhere in the payload. Supply each as base64 `data` OR a `url` (fetched server-side). Every image — fetched or inline — is validated from its MAGIC BYTES (not the Content-Type): it must be a real PNG (`422 amb_image_not_png` / `code` on the failed send otherwise), within Apple's 200 KB per-image cap (`amb_image_too_large`) and 5 MB aggregate ca…"
+                "description": "Inline PNG assets referenced by `imageIdentifier` elsewhere in the payload. Supply each as base64 `data` OR a `url` (fetched server-side, and converted to a PNG within 200 KB when it isn't one). Every image — fetched or inline — is validated from its MAGIC BYTES (not the Content-Type): it must be a real PNG (`422 amb_image_not_png` / `code` on the failed send otherwise), within Apple's 200 KB per…"
               },
               "items": {
                 "type": "array",
