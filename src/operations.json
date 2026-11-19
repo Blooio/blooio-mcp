@@ -5672,7 +5672,7 @@
     {
       "name": "create_ticket",
       "operationId": "createTicket",
-      "description": "Open a ticket\n\nOpens a support ticket for the Blooio team. Every ticket opens at `medium` priority; only Blooio support changes it, so sending `priority` returns `422 priority_not_allowed`. To request call forwarding, prefer `POST /me/numbers/{number}/call-forwarding`, which takes the destination as a field. OAuth apps need `tickets:write`.",
+      "description": "Open a ticket\n\nOpens a support ticket for the Blooio team. Every ticket opens at `medium` priority; only Blooio support changes it, so sending `priority` returns `422 priority_not_allowed`. To request call forwarding, prefer `POST /me/numbers/{number}/call-forwarding`, which takes the destination as a field. When the organization has the support assistant enabled, a support or technical ticket starts an assistant reply: poll `GET /tickets/{ticketId}` while `assistant.reply_pending` is true, then read `GET /tickets/{ticketId}/comments`. A billing ticket opened here is not answered by the assistant. OAuth apps need `tickets:write`.",
       "annotations": {
         "title": "Open a ticket",
         "readOnlyHint": false,
@@ -5722,7 +5722,7 @@
     {
       "name": "get_ticket",
       "operationId": "getTicket",
-      "description": "Get a ticket\n\nReturns one ticket. Poll this to check a call-forwarding request: its `forwarding.state` reads `pending`, `in_progress`, `completed`, or `failed`, and a closed ticket always reads `completed`. OAuth apps need `tickets:read`.",
+      "description": "Get a ticket\n\nReturns one ticket, including `assistant`. Poll this to check a call-forwarding request: its `forwarding.state` reads `pending`, `in_progress`, `completed`, or `failed`, and a closed ticket always reads `completed`. After opening a ticket or adding a comment, poll while `assistant.reply_pending` is true, then read the comments. `can_confirm_answer` or `can_choose_escalation` means another comment returns `409 assistant_decision_pending` until `POST /tickets/{ticketId}/resolution`. OAuth apps need `tickets:read`.",
       "annotations": {
         "title": "Get a ticket",
         "readOnlyHint": true,
@@ -5847,7 +5847,7 @@
     {
       "name": "add_ticket_comment",
       "operationId": "addTicketComment",
-      "description": "Reply to a ticket\n\nAdds a reply. A ticket waiting on you moves back to `in_progress`. Closed tickets and tickets whose `can_comment` is false return `403`. OAuth apps need `tickets:write`.",
+      "description": "Reply to a ticket\n\nAdds a reply. A ticket waiting on you moves back to `in_progress`. Closed tickets and tickets whose `can_comment` is false return `403`. While `assistant.can_confirm_answer` or `assistant.can_choose_escalation` is true, this returns `409 assistant_decision_pending` and writes nothing; answer that choice with `POST /tickets/{ticketId}/resolution`. A successful reply on an eligible ticket schedules the assistant: poll `GET /tickets/{ticketId}` while `assistant.reply_pending` is true. OAuth apps need `tickets:write`.",
       "annotations": {
         "title": "Reply to a ticket",
         "readOnlyHint": false,
@@ -5889,6 +5889,97 @@
         "required": [
           "ticket_id",
           "content"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "submit_ticket_resolution",
+      "operationId": "submitTicketResolution",
+      "description": "Answer the assistant\n\nAnswers the support assistant. Send exactly one of `answered` and `choice`. `answered: true` closes the ticket. `answered: false` asks whether to escalate or keep chatting and leaves the ticket open. `choice: \"continue\"` keeps the assistant on the ticket. `choice: \"escalate\"` hands the ticket to a person. Sending both fields, neither field, or a value that is not one of those returns `422 invalid_body`. A ticket that is not waiting on that choice returns `409 assistant_choice_stale`. The response is the ticket, including `assistant`. OAuth apps need `tickets:write`.",
+      "annotations": {
+        "title": "Answer the assistant",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/tickets/{ticketId}/resolution",
+      "pathParams": [
+        {
+          "name": "ticketId",
+          "arg": "ticket_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "answered",
+          "choice"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^tkt_",
+            "description": "Ticket id (`tkt_...`), returned when the ticket is opened."
+          },
+          "answered": {
+            "type": "boolean",
+            "description": "`true` closes the ticket. `false` asks whether to escalate or keep chatting."
+          },
+          "choice": {
+            "type": "string",
+            "enum": [
+              "escalate",
+              "continue"
+            ],
+            "description": "`continue` keeps the assistant going. `escalate` hands the ticket to a person. `continue` is valid only while the escalate question is the latest comment. `escalate` is also valid after the customer has kept chatting."
+          }
+        },
+        "required": [
+          "ticket_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "retry_ticket_reply",
+      "operationId": "retryTicketReply",
+      "description": "Retry a stalled assistant reply\n\nAsks the support assistant to try the latest customer comment again. Does not add a comment. The original schedule counts as the first attempt; two retries are allowed, and the next one hands the ticket to a person. A closed ticket, a ticket the assistant does not answer, a comment that is no longer the latest, a staff reply, or an existing handoff returns `409 assistant_retry_refused`. The response is the ticket, including `assistant`. Poll while `assistant.reply_pending` is true. OAuth apps need `tickets:write`.",
+      "annotations": {
+        "title": "Retry a stalled assistant reply",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/tickets/{ticketId}/reply-retry",
+      "pathParams": [
+        {
+          "name": "ticketId",
+          "arg": "ticket_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^tkt_",
+            "description": "Ticket id (`tkt_...`), returned when the ticket is opened."
+          }
+        },
+        "required": [
+          "ticket_id"
         ],
         "additionalProperties": false
       }
