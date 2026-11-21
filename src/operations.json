@@ -6854,7 +6854,7 @@
     {
       "name": "create_ten_dlc_campaign",
       "operationId": "createTenDlcCampaign",
-      "description": "Create a campaign\n\nRegister a campaign under the organization's registered brand. The registry and carriers review it asynchronously; `registration.campaign.updated` fires as its `status` changes. Once a campaign reaches `mno_provisioned`, Blooio assigns the organization's unassigned SMS numbers to its oldest provisioned campaign. A campaign bills monthly until it fails or expires, and each one after the first that's reviewed charges a review fee; both are charged before it's submitted and refunded if the registry rejects the request. A campaign carriers would reject is refused before any charge, with every reason; one the registry still fails before review (`tcr_failed`) has its review fee refunded. OAuth apps need `numbers:manage`.",
+      "description": "Create a campaign\n\nRegister a campaign under the organization's registered brand. The registry and carriers review it asynchronously; `registration.campaign.updated` fires as its `status` changes. Once a campaign reaches `mno_provisioned`, Blooio assigns the organization's unassigned SMS numbers to its oldest provisioned campaign. A campaign bills monthly until it can no longer send (`tcr_failed`, `tcr_expired`, `tcr_suspended`, or `mno_provisioning_failed`) or is canceled with `DELETE /10dlc/campaigns/{campaignId}`, and each one after the first that's reviewed charges a review fee; both are charged before it's submitted and refunded if the registry rejects the request. A campaign carriers would reject is refused before any charge, with every reason; one the registry still fails before review (`tcr_failed`) has its review fee refunded. OAuth apps need `numbers:manage`.",
       "annotations": {
         "title": "Create a campaign",
         "readOnlyHint": false,
@@ -7122,6 +7122,42 @@
         "required": [
           "campaign_id",
           "samples"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "cancel_ten_dlc_campaign",
+      "operationId": "cancelTenDlcCampaign",
+      "description": "Cancel a campaign\n\nDeactivate a campaign with the registry, for good: it moves to `deactivated` and can't be restored or appealed. Its monthly charge stops, and the unused part of the current month is credited to the next invoice; review fees aren't refunded. Move any numbers on the campaign to another one first (`PATCH /numbers/{number}` with `campaign_id`). Retrying after any failure is safe, and canceling a campaign that's already `deactivated` returns it unchanged. `registration.campaign.updated` fires once. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Cancel a campaign",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      },
+      "method": "DELETE",
+      "path": "/10dlc/campaigns/{campaignId}",
+      "pathParams": [
+        {
+          "name": "campaignId",
+          "arg": "campaign_id"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "pattern": "^camp_",
+            "description": "10DLC campaign id (`camp_...`)."
+          }
+        },
+        "required": [
+          "campaign_id"
         ],
         "additionalProperties": false
       }
