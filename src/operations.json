@@ -292,7 +292,7 @@
     {
       "name": "list_location_contacts",
       "operationId": "listLocationContacts",
-      "description": "List Find My contacts\n\nLists Find My friends sharing their location with the linked Apple account.",
+      "description": "List Find My contacts\n\nLists Find My friends sharing their location with the linked Apple account. Location is only available on **Dedicated Commercial** and **Dedicated Enterprise** plans. It is not available on Inbound, Shared, or Trial lines; an API key without a Dedicated Commercial or Dedicated Enterprise number receives a `403`.",
       "annotations": {
         "title": "List Find My contacts",
         "readOnlyHint": true,
@@ -314,7 +314,7 @@
     {
       "name": "refresh_location_contacts",
       "operationId": "refreshLocationContacts",
-      "description": "Refresh Find My locations\n\nForces a refresh of Find My location data from the device.",
+      "description": "Refresh Find My locations\n\nForces a refresh of Find My location data from the device. Location is only available on **Dedicated Commercial** and **Dedicated Enterprise** plans. It is not available on Inbound, Shared, or Trial lines; an API key without a Dedicated Commercial or Dedicated Enterprise number receives a `403`.",
       "annotations": {
         "title": "Refresh Find My locations",
         "readOnlyHint": false,
@@ -336,7 +336,7 @@
     {
       "name": "get_location_contact",
       "operationId": "getLocationContact",
-      "description": "Get one Find My contact",
+      "description": "Get one Find My contact\n\nReturns the cached Find My location for one contact. Location is only available on **Dedicated Commercial** and **Dedicated Enterprise** plans. It is not available on Inbound, Shared, or Trial lines; an API key without a Dedicated Commercial or Dedicated Enterprise number receives a `403`.",
       "annotations": {
         "title": "Get one Find My contact",
         "readOnlyHint": true,
