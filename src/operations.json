@@ -1613,6 +1613,120 @@
       }
     },
     {
+      "name": "list_channel_location_contacts",
+      "operationId": "listChannelLocationContacts",
+      "description": "List a line's Find My contacts\n\nLists the contacts sharing their location with one dedicated iMessage line. An API key can read only lines it owns, so one key per line keeps each line's shares apart; a line the key doesn't own returns `404 channel_not_found`.",
+      "annotations": {
+        "title": "List a line's Find My contacts",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/channels/{channel}/location/contacts",
+      "pathParams": [
+        {
+          "name": "channel",
+          "arg": "channel"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "The channel reference — the same three forms `from` accepts: a phone number (URL-encode `+` as `%2B`), a channel alias, or the exact channel id (`ch_...`)."
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "refresh_channel_location_contacts",
+      "operationId": "refreshChannelLocationContacts",
+      "description": "Refresh a line's Find My locations\n\nAsks Apple for a newer position for every contact sharing with this line, and returns the positions known right now. The newer position shows up on a later read.",
+      "annotations": {
+        "title": "Refresh a line's Find My locations",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/channels/{channel}/location/contacts/refresh",
+      "pathParams": [
+        {
+          "name": "channel",
+          "arg": "channel"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "The channel reference — the same three forms `from` accepts: a phone number (URL-encode `+` as `%2B`), a channel alias, or the exact channel id (`ch_...`)."
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_channel_location_contact",
+      "operationId": "getChannelLocationContact",
+      "description": "Get one contact's location on a line\n\nReturns the location of one contact sharing with this line. Returns `404` if they aren't sharing with it, including after they stop.",
+      "annotations": {
+        "title": "Get one contact's location on a line",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/channels/{channel}/location/contacts/{handle}",
+      "pathParams": [
+        {
+          "name": "channel",
+          "arg": "channel"
+        },
+        {
+          "name": "handle",
+          "arg": "handle"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "The channel reference — the same three forms `from` accepts: a phone number (URL-encode `+` as `%2B`), a channel alias, or the exact channel id (`ch_...`)."
+          },
+          "handle": {
+            "type": "string",
+            "description": "The contact's phone number in E.164 format or Apple ID email, URL-encoded. A contact appears under whichever identity their phone shared from."
+          }
+        },
+        "required": [
+          "channel",
+          "handle"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "list_priorities",
       "operationId": "listPriorities",
       "description": "List priorities\n\nLists channel priorities owned by the calling API key.",
