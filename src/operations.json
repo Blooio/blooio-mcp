@@ -790,7 +790,7 @@
     {
       "name": "get_channel_settings",
       "operationId": "getChannelSettings",
-      "description": "Get channel settings\n\nPer-channel settings for channel types that support them. `settings` and `available` are per channel type: Blooio (P2P numbers) exposes `auto_mark_read`, `auto_share_contact`, and `imessage_only`; Apple Messages for Business and WhatsApp Business expose `opener`; Blooio Voice exposes `inbound`, who answers the number's calls and how long they ring. `available[key]` says whether THIS channel may turn `key` on (type-gated). A channel whose type has no settings yet returns `403 settings_unsupported_for_channel_type`.",
+      "description": "Get channel settings\n\nPer-channel settings for channel types that support them. `settings` and `available` are per channel type: Blooio (P2P numbers) exposes `auto_mark_read`, `auto_share_contact`, and `imessage_only`; Apple Messages for Business and WhatsApp Business expose `opener`; Blooio Voice exposes `inbound`, who answers the number's calls and how long they ring, and `outbound`, the caller ID the dashboard softphone pre-selects. `available[key]` says whether THIS channel may turn `key` on (type-gated). A channel whose type has no settings yet returns `403 settings_unsupported_for_channel_type`.",
       "annotations": {
         "title": "Get channel settings",
         "readOnlyHint": true,
@@ -825,7 +825,7 @@
     {
       "name": "update_channel_settings",
       "operationId": "updateChannelSettings",
-      "description": "Update channel settings\n\nPartial update of a channel's settings (send only the keys you want to change). Keys are per channel type. Blooio (P2P numbers): `auto_mark_read` is available on dedicated and inbound lines; `auto_share_contact` is dedicated-only AND the line must have a contact card (name or photo) set up; `imessage_only` is available on every line. Apple Messages for Business and WhatsApp Business: `opener`, a partial update of the channel's opener (send only the fields you want to change). Blooio Voice: `inbound`, with `handler` (`softphone` or `agent`) and `ring_timeout_seconds` (5 to 120); `agent` needs a live Blooio agent that owns the number. Turning a setting OFF is always allowed. Errors return a machine-readable `code`: `settings_unsupported_for_channel_type` (403, a channel type without settings), `auto_mark_read_not_allowed` / `auto_share_contact_not_allowed` (403, line type can't enable it), `contact_card_not_set_up` (403, enable auto_share_contact with no contact card), `agent_unavailable` (409, the `agent` handler on a number no live Blooio agent owns), `no_settings_provided` (422, empty update), `invalid_settings` (422, unknown key or field, a value of the wrong type, or an opener…",
+      "description": "Update channel settings\n\nPartial update of a channel's settings (send only the keys you want to change). Keys are per channel type. Blooio (P2P numbers): `auto_mark_read` is available on dedicated and inbound lines; `auto_share_contact` is dedicated-only AND the line must have a contact card (name or photo) set up; `imessage_only` is available on every line. Apple Messages for Business and WhatsApp Business: `opener`, a partial update of the channel's opener (send only the fields you want to change). Blooio Voice: `inbound`, with `handler` (`softphone` or `agent`) and `ring_timeout_seconds` (5 to 120); `agent` needs a live Blooio agent that owns the number; and `outbound`, with `caller_id`, the caller ID the dashboard softphone pre-selects (another of the organization's Blooio Voice numbers, a verified caller ID, or `null` for the number itself). `outbound` doesn't change `POST /calls`, which shows `from` unless the request sets `caller_id`. Turning a setting OFF is always allowed. Errors return a machine-readable `code`: `settings_unsupported_for_channel_type` (403, a channel type without settings), `caller_id_not_verified` (400, an `outbound.caller_id` that is neither one of the organization's Blooio Vo…",
       "annotations": {
         "title": "Update channel settings",
         "readOnlyHint": false,
@@ -849,6 +849,7 @@
           "auto_share_contact",
           "imessage_only",
           "inbound",
+          "outbound",
           "opener"
         ],
         "fileFields": []
@@ -892,6 +893,22 @@
                 "description": "How long a call rings before it ends `missed`. Also how long a call a Blooio agent hands off waits for a teammate before the agent takes it back."
               }
             }
+          },
+          "outbound": {
+            "type": "object",
+            "description": "The caller ID the dashboard softphone pre-selects for calls from a Blooio Voice number. It doesn't change `POST /calls`, which shows `from` unless the request sets `caller_id`.",
+            "properties": {
+              "caller_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Another of the organization's Blooio Voice numbers or one of its verified caller IDs, in E.164 format; `null` for the number itself. Required when sending `outbound`. Removing a verified caller ID resets numbers that named it to `null`."
+              }
+            },
+            "required": [
+              "caller_id"
+            ]
           },
           "opener": {
             "description": "Apple Messages for Business or WhatsApp Business: a partial update of the channel's opener, merged into the saved one. Turning it on validates the template.",
@@ -8362,7 +8379,7 @@
     {
       "name": "place_call",
       "operationId": "placeCall",
-      "description": "Place a call\n\nCall `to` from one of the organization's Blooio Voice numbers. The call starts `ringing`; when the callee answers, `handler` takes its audio and `call.answered` fires. With an `agent` handler, the Blooio agent that owns `from` talks to the callee. OAuth apps need `calls:write`.",
+      "description": "Place a call\n\nCall `to` from one of the organization's Blooio Voice numbers. The call starts `ringing`; when the callee answers, `handler` takes its audio and `call.answered` fires. With an `agent` handler, the Blooio agent that owns `from` talks to the callee. The callee sees `from` unless `caller_id` names another number to show; the call's `caller_id` says which number it showed and its attestation. The number's voice setting `outbound.caller_id` doesn't change this: it only pre-selects the dashboard softphone. OAuth apps need `calls:write`.",
       "annotations": {
         "title": "Place a call",
         "readOnlyHint": false,
@@ -8379,6 +8396,7 @@
         "fields": [
           "from",
           "to",
+          "caller_id",
           "handler"
         ],
         "fileFields": []
@@ -8393,6 +8411,13 @@
           "to": {
             "type": "string",
             "description": "The number to call, in E.164 format."
+          },
+          "caller_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The number the callee sees, in E.164 format: another of the organization's Blooio Voice numbers (A attestation) or one of its verified caller IDs (B attestation; see Caller IDs). Optional; when omitted or `null`, the call shows `from`."
           },
           "handler": {
             "type": "object",
@@ -8426,6 +8451,162 @@
           "from",
           "to",
           "handler"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_caller_ids",
+      "operationId": "listCallerIds",
+      "description": "List caller IDs\n\nThe organization's verified caller IDs, most recently verified first. The organization's own Blooio Voice numbers aren't listed; any of them can be shown without verification. OAuth apps need `numbers:read`.",
+      "annotations": {
+        "title": "List caller IDs",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "GET",
+      "path": "/caller-ids",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_caller_id",
+      "operationId": "createCallerId",
+      "description": "Verify a caller ID\n\nSend a verification code to `phone_number`, by text (`sms`, the default) or by a phone call that reads it out (`call`). Confirm it with `POST /caller-ids/{phone}/verify`. Only US and Canadian numbers can be verified. A number gets one code a minute, and the organization one every 30 seconds. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Verify a caller ID",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/caller-ids",
+      "pathParams": [],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "phone_number",
+          "method",
+          "extension"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "description": "A US or Canadian number in E.164 format."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "sms",
+              "call"
+            ],
+            "default": "sms",
+            "description": "`sms` texts the code; `call` calls the number and reads it out, for a landline."
+          },
+          "extension": {
+            "type": "string",
+            "pattern": "^[0-9A-D*#wW]{1,50}$",
+            "description": "`call` only: digits to dial once the call is answered, such as an extension behind a phone menu. `w` and `W` pause before the next digit."
+          }
+        },
+        "required": [
+          "phone_number"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "confirm_caller_id",
+      "operationId": "confirmCallerId",
+      "description": "Confirm a caller ID\n\nConfirm the code sent to `phone`. The number joins the organization's caller IDs, ready to show on its calls. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Confirm a caller ID",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "method": "POST",
+      "path": "/caller-ids/{phone}/verify",
+      "pathParams": [
+        {
+          "name": "phone",
+          "arg": "phone"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": {
+        "type": "json",
+        "fields": [
+          "code"
+        ],
+        "fileFields": []
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "The caller ID's number in E.164 format, URL-encoded (`%2B16692884999`)."
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{4,10}$",
+            "description": "The code sent to the number."
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_caller_id",
+      "operationId": "deleteCallerId",
+      "description": "Remove a caller ID\n\nRemove a verified caller ID. Calls can no longer show it, and numbers whose voice setting `outbound.caller_id` named it go back to their own number. OAuth apps need `numbers:manage`.",
+      "annotations": {
+        "title": "Remove a caller ID",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      },
+      "method": "DELETE",
+      "path": "/caller-ids/{phone}",
+      "pathParams": [
+        {
+          "name": "phone",
+          "arg": "phone"
+        }
+      ],
+      "queryParams": [],
+      "headerParams": [],
+      "body": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "The caller ID's number in E.164 format, URL-encoded (`%2B16692884999`)."
+          }
+        },
+        "required": [
+          "phone"
         ],
         "additionalProperties": false
       }
